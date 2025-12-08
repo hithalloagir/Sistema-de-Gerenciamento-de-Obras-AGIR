@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Obras{% endblock %}
+
+{% block content %}
+<h1 class="mb-3">Obras</h1>
+
+<div class="d-flex justify-content-end mb-3">
+  <a href="{% url 'obras:nova_obra' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Nova Obra
+  </a>
+</div>
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th>Nome</th>
+      <th>Cliente</th>
+      <th>Início</th>
+      <th>Prazo final</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for obra in obras %}
+      <tr>
+        <td>{{ obra.nome }}</td>
+        <td>{{ obra.cliente }}</td>
+        <td>{{ obra.data_inicio|date:"d/m/Y" }}</td>
+        <td>{{ obra.data_fim_prevista|date:"d/m/Y" }}</td>
+        <td>
+          <a class="btn btn-sm btn-outline-primary"
+             href="{% url 'obras:detalhe_obra' obra.id %}">
+              Detalhes
+          </a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="5">Nenhuma obra cadastrada.</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

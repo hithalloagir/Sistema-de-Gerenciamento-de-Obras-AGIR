@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Nova Tarefa{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'obras:listar_obras' %}">Obras</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'obras:detalhe_obra' obra.id %}">{{ obra.nome }}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Nova Tarefa em {{ categoria.nome }}</li>
+    </ol>
+  </nav>
+
+  <h1 class="mb-4">Adicionar Tarefa em "{{ categoria.nome }}"</h1>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <button type="submit" class="btn btn-primary mt-3">Salvar Tarefa</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+  {% if object %}
+    Editar Obra: {{ object.nome }}
+  {% else %}
+    Cadastrar Nova Obra
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <h1 class="mb-4">
+    {% if object %}Editar Obra{% else %}Cadastrar Nova Obra{% endif %}
+  </h1>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <h5 class="mb-3">Dados da Obra</h5>
+        {{ form|crispy }}
+
+        {% if not object %}
+          <hr class="my-4">
+          <h5 class="mb-3">Adicionar Categorias Iniciais (Opcional)</h5>
+          {{ categorias_formset.management_form }}
+          {% for form in categorias_formset %}
+            <div class="row">{{ form|crispy }}</div>
+          {% endfor %}
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary mt-3">Salvar</button>
+        <a href="{% if object %}{% url 'obras:detalhe_obra' object.id %}{% else %}{% url 'obras:listar_obras' %}{% endif %}" class="btn btn-secondary mt-3">Cancelar</a>
+      </form>
+    </div>
+  </div>
+{% endblock %}

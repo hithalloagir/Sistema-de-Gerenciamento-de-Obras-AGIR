@@ -1,0 +1,46 @@
+from django.views.generic import ListView, DetailView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from .models import Obra, Categoria, Tarefa
+
+
+class ObraListView(LoginRequiredMixin, ListView):
+    model = Obra
+    template_name = "obras/obra_list.html"
+    context_object_name = "obras"
+
+    def get_queryset(self):
+        # aqui você pode filtrar por empresa/usuário depois, se precisar
+        return (
+            Obra.objects.all()
+            .order_by("nome")
+        )
+
+
+class ObraDetailView(LoginRequiredMixin, DetailView):
+    model = Obra
+    template_name = "obras/obra_detail.html"
+    context_object_name = "obra"
+
+    def get_queryset(self):
+        # Otimiza a consulta, buscando previamente as categorias e suas respectivas tarefas
+        return super().get_queryset().prefetch_related("categorias__tarefas")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        obra = self.object
+
+        # As categorias já vêm com as tarefas pré-carregadas devido ao get_queryset
+        categorias = obra.categorias.all()
+
+        # Exemplo de cálculo simples: % de tarefas concluídas na obra
+        total_tarefas = Tarefa.objects.filter(categoria__obra=obra).count()
+        concluidas = Tarefa.objects.filter(
+            categoria__obra=obra, status="concluida"
+        ).count()
+        percentual_concluido = (
+            (concluidas / total_tarefas) * 100 if total_tarefas > 0 else 0
+        )
+
+        context["categorias"] = categorias
+        context["percentual_concluido"] = round(percentual_concluido, 1)
+        return context
