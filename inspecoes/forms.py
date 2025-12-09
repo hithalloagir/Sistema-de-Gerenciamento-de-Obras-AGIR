@@ -18,3 +18,4 @@ class InspecaoForm(forms.ModelForm):
         if obra:
             self.fields["categoria"].queryset = Categoria.objects.filter(obra=obra)
             self.fields["tarefa"].queryset = Tarefa.objects.filter(categoria__obra=obra)
+

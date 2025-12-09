@@ -2,42 +2,86 @@
 {% block title %}Obras{% endblock %}
 
 {% block content %}
-<h1 class="mb-3">Obras</h1>
-
-<div class="d-flex justify-content-end mb-3">
-  <a href="{% url 'obras:nova_obra' %}" class="btn btn-primary">
-    <i class="bi bi-plus-circle"></i> Nova Obra
-  </a>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+  <div>
+    <p class="text-success fw-semibold mb-1">Obras</p>
+    <h2 class="mb-1">Seja bem-vindo!</h2>
+    <p class="text-muted mb-0">Nos quadros abaixo estão suas obras, selecione qual obra deseja editar.</p>
+  </div>
+  {% if user.profile.role == 'admin' %}
+    <a href="{% url 'obras:nova_obra' %}" class="btn btn-success">
+      <i class="bi bi-plus-circle"></i> Nova obra
+    </a>
+  {% endif %}
 </div>
-<table class="table table-striped table-hover">
-  <thead>
-    <tr>
-      <th>Nome</th>
-      <th>Cliente</th>
-      <th>Início</th>
-      <th>Prazo final</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for obra in obras %}
-      <tr>
-        <td>{{ obra.nome }}</td>
-        <td>{{ obra.cliente }}</td>
-        <td>{{ obra.data_inicio|date:"d/m/Y" }}</td>
-        <td>{{ obra.data_fim_prevista|date:"d/m/Y" }}</td>
-        <td>
-          <a class="btn btn-sm btn-outline-primary"
-             href="{% url 'obras:detalhe_obra' obra.id %}">
-              Detalhes
-          </a>
-        </td>
-      </tr>
-    {% empty %}
-      <tr>
-        <td colspan="5">Nenhuma obra cadastrada.</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'ativa' or status_filter == '' %}active{% endif %}" href="?status=ativa">Obras ativas ({{ counts.ativa|default:0 }})</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'finalizada' %}active{% endif %}" href="?status=finalizada">Finalizadas ({{ counts.finalizada|default:0 }})</a>
+  </li>
+</ul>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form class="row g-2 align-items-center" method="get">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <div class="col-lg-8">
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="search" name="q" class="form-control" placeholder="Digite o nome da obra" value="{{ search_query }}">
+        </div>
+      </div>
+      <div class="col-lg-4 d-flex gap-2 justify-content-lg-end">
+        <button class="btn btn-outline-secondary" type="submit">
+          <i class="bi bi-search"></i> Buscar
+        </button>
+        <a class="btn btn-outline-light border" href="{% url 'obras:listar_obras' %}">Limpar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if obras %}
+<div class="row g-3">
+  {% for obra in obras %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <p class="text-muted mb-1">{{ obra.cliente|default:"Cliente não informado" }}</p>
+              <h5 class="mb-1">{{ obra.nome }}</h5>
+              <small class="text-muted">Início: {{ obra.data_inicio|date:"d/m/Y" }}</small>
+            </div>
+            <span class="badge {% if obra.status == 'finalizada' %}bg-success{% else %}bg-primary{% endif %}">{{ obra.get_status_display }}</span>
+          </div>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between">
+              <small class="text-muted">Progresso</small>
+              <small class="fw-semibold">{{ obra.perc_concluido }}%</small>
+            </div>
+            <div class="progress" style="height: 12px;">
+              <div class="progress-bar" role="progressbar" style="width: {{ obra.perc_concluido }}%;" aria-valuenow="{{ obra.perc_concluido }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </div>
+          <div class="mt-auto d-flex gap-2">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'obras:detalhe_obra' obra.id %}">Detalhes</a>
+            {% if obra.status != 'finalizada' %}
+            <form method="post" action="{% url 'obras:concluir_obra' obra.id %}" onsubmit="return confirm('Marcar obra como concluída?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-success">Concluir</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+  <p class="text-center text-muted mb-0">Nenhuma obra cadastrada.</p>
+{% endif %}
 {% endblock %}

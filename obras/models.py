@@ -5,17 +5,28 @@ from django.db.models import Avg
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 
+
 class Obra(models.Model):
+    STATUS_CHOICES = [
+        ("ativa", "Ativa"),
+        ("finalizada", "Finalizada"),
+    ]
+
     nome = models.CharField(max_length=100)
     cliente = models.CharField(max_length=100, blank=True)
     endereco = models.CharField(max_length=200, blank=True)
     data_inicio = models.DateField(null=True, blank=True)
     data_fim_prevista = models.DateField(null=True, blank=True)
+    capa = models.ImageField(upload_to="obras/capas/", null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ativa")
+    custo_previsto = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    custo_real = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.nome
+
 
 class Categoria(models.Model):
     STATUS_CHOICES = [
@@ -24,13 +35,12 @@ class Categoria(models.Model):
         ("atrasada", "Atrasada"),
     ]
 
-
     obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name='categorias')
     nome = models.CharField(max_length=255)
     descricao = models.TextField(blank=True)
     prazo_final = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="andamento")
-    criado_em = models.DateTimeField(auto_now_add=True) 
+    criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -43,10 +53,10 @@ class Categoria(models.Model):
     @property
     def percentual_concluido(self):
         """Calcula o percentual de conclusão da categoria com base na média de suas tarefas."""
-        # Usamos aggregate para fazer o cálculo no banco de dados, o que é mais eficiente.
         resultado = self.tarefas.aggregate(media=Avg('percentual_concluido'))
         media = resultado.get('media')
         return round(media, 1) if media is not None else 0
+
 
 class Tarefa(models.Model):
     STATUS_CHOICES = [
@@ -104,7 +114,7 @@ class Tarefa(models.Model):
                 self.data_fim_real = timezone.now().date()
         elif self.percentual_concluido > 0:
             self.status = "andamento"
-            self.data_fim_real = None # Garante que a data de fim seja nula se a tarefa for reaberta
+            self.data_fim_real = None  # Garante que a data de fim seja nula se a tarefa for reaberta
         else:
             self.status = "nao_iniciada"
             self.data_fim_real = None
@@ -155,6 +165,7 @@ class Pendencia(models.Model):
     status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default="aberta"
     )
+    data_limite = models.DateField(null=True, blank=True)
     data_abertura = models.DateTimeField(auto_now_add=True)
     data_fechamento = models.DateTimeField(null=True, blank=True)
 
@@ -163,6 +174,13 @@ class Pendencia(models.Model):
 
     def __str__(self):
         return f"{self.obra} - {self.descricao[:50]}"
+
+    def save(self, *args, **kwargs):
+        if self.status == "resolvida" and not self.data_fechamento:
+            self.data_fechamento = timezone.now()
+        if self.status != "resolvida":
+            self.data_fechamento = None
+        super().save(*args, **kwargs)
 
 
 class SolucaoPendencia(models.Model):
@@ -180,4 +198,18 @@ class SolucaoPendencia(models.Model):
 
     def __str__(self):
         return f"Solução #{self.id} - Pendência {self.pendencia_id}"
-    
+
+
+class AnexoObra(models.Model):
+    obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="anexos")
+    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name="anexos")
+    arquivo = models.FileField(upload_to="anexos/")
+    descricao = models.CharField(max_length=255, blank=True)
+    enviado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    enviado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-enviado_em"]
+
+    def __str__(self):
+        return f"Anexo {self.id} - {self.obra.nome}"

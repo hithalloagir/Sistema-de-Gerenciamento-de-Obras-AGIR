@@ -76,6 +76,19 @@ class Inspecao(models.Model):
         return f"Inspeção {self.id} - {self.obra} ({self.data_inspecao})"
 
 
+class InspecaoFoto(models.Model):
+    inspecao = models.ForeignKey(Inspecao, on_delete=models.CASCADE, related_name="fotos")
+    imagem = models.ImageField(upload_to="inspecoes/fotos/")
+    legenda = models.CharField(max_length=255, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+
+    def __str__(self):
+        return f"Foto {self.id} - Inspeção {self.inspecao_id}"
+
+
 class ItemInspecao(models.Model):
     STATUS_CHOICES = [
         ("aprovado", "Aprovado"),

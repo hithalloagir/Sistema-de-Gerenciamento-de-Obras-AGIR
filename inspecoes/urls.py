@@ -5,4 +5,5 @@ urlpatterns = [
     # criar inspeção para uma obra específica
     path("nova/<int:obra_id>/", views.InspecaoCreateView.as_view(), name="nova_inspecao"),
     path("obra/<int:obra_id>/", views.InspecaoObraListView.as_view(), name="lista_obra"),
+    path("<int:pk>/", views.InspecaoDetailView.as_view(), name="detalhe_inspecao"),
 ]

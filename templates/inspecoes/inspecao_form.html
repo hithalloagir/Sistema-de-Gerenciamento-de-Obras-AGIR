@@ -1,42 +1,45 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Nova inspeção{% endblock %}
 
 {% block content %}
-<h1>Nova inspeção - {{ form.instance.obra|default:obra }}</h1>
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'obras:listar_obras' %}">Obras</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'obras:detalhe_obra' obra.id %}">{{ obra.nome }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Nova inspeção</li>
+  </ol>
+</nav>
 
-<form method="post">
-  {% csrf_token %}
+<div class="card">
+  <div class="card-body">
+    <h1 class="h4 mb-3">Nova inspeção - {{ obra }}</h1>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
 
-  {{ form.as_p }}
+      {{ form.as_p }}
 
-  <!-- campos hidden para latitude/longitude -->
-  <input type="hidden" name="latitude" id="id_latitude">
-  <input type="hidden" name="longitude" id="id_longitude">
+      <div class="mb-3">
+        <label class="form-label">Fotos da inspeção (opcional)</label>
+        <input type="file" name="fotos" class="form-control" multiple>
+        <small class="text-muted">Você pode selecionar múltiplas imagens.</small>
+      </div>
 
-  <button type="button" class="btn btn-outline-secondary mb-3"
-          onclick="capturarLocalizacao()">
-    Capturar localização
+      <input type="hidden" name="latitude" id="id_latitude">
+      <input type="hidden" name="longitude" id="id_longitude">
+
+      <div class="d-flex gap-2 mt-3">
+  <button type="button" class="btn btn-outline-secondary" id="btn-capturar-localizacao">
+          Capturar localização
   </button>
+        <button type="submit" class="btn btn-primary">Salvar inspeção</button>
+        <a class="btn btn-link text-decoration-none" href="{% url 'obras:detalhe_obra' obra.id %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
 
-  <button type="submit" class="btn btn-primary">Salvar inspeção</button>
-</form>
-
-<script>
-function capturarLocalizacao() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      function (position) {
-        document.getElementById("id_latitude").value = position.coords.latitude;
-        document.getElementById("id_longitude").value = position.coords.longitude;
-        alert("Localização capturada com sucesso!");
-      },
-      function (error) {
-        alert("Não foi possível obter a localização. Verifique as permissões do navegador.");
-      }
-    );
-  } else {
-    alert("Geolocalização não é suportada neste navegador.");
-  }
-}
-</script>
+{% block extra_js %}
+<script src="{% static 'js/inspecao_form.js' %}"></script>
 {% endblock %}

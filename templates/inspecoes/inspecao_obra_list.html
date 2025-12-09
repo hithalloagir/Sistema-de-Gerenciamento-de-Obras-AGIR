@@ -1,8 +1,8 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Inspeções - {{ obra.nome }}{% endblock %}
 
 {% block extra_head %}
-  <!-- Leaflet CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -12,7 +12,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- Breadcrumb para navegação -->
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="{% url 'obras:listar_obras' %}">Obras</a></li>
@@ -24,7 +23,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h1 class="h2">Inspeções da Obra</h1>
-    <p class="text-muted">Visualize os registros de inspeção na lista e no mapa.</p>
+    <p class="text-muted mb-0">Visualize os registros na lista e no mapa.</p>
   </div>
   <a href="{% url 'obras:detalhe_obra' obra.id %}" class="btn btn-outline-secondary">
     &larr; Voltar para a Obra
@@ -32,7 +31,6 @@
 </div>
 
 <div class="row g-4">
-  <!-- Coluna da Lista de Inspeções -->
   <div class="col-lg-7">
     <div class="card h-100">
       <div class="card-header">
@@ -51,7 +49,7 @@
             </thead>
             <tbody>
               {% for insp in inspecoes %}
-                <tr>
+                <tr onclick="window.location.href='{% url 'inspecoes:detalhe_inspecao' insp.id %}'" style="cursor:pointer;">
                   <td>{{ insp.data_inspecao|date:"d/m/Y" }}</td>
                   <td>{{ insp.usuario.username }}</td>
                   <td>{{ insp.categoria|default_if_none:"" }} / {{ insp.tarefa|default_if_none:"" }}</td>
@@ -69,7 +67,6 @@
     </div>
   </div>
 
-  <!-- Coluna do Mapa -->
   <div class="col-lg-5">
     <div class="card h-100">
       <div class="card-header">
@@ -84,45 +81,11 @@
 {% endblock %}
 
 {% block extra_js %}
-  <!-- Leaflet JS -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin="">
   </script>
-
   {{ markers_data_json|json_script:"markers-data" }}
-  <script>
-    const markersData = JSON.parse(document.getElementById('markers-data').textContent);
-
-    // define centro padrão (Brasil) se não tiver marcador
-    var initialLat = -15.77972;
-    var initialLng = -47.92972;
-    var initialZoom = 5;
-
-    if (markersData.length > 0) {
-      initialLat = markersData[0].lat;
-      initialLng = markersData[0].lng;
-      initialZoom = 15;
-    }
-
-    var map = L.map('map').setView([initialLat, initialLng], initialZoom);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-
-    var bounds = [];
-
-    markersData.forEach(function (item) {
-      var marker = L.marker([item.lat, item.lng]).addTo(map);
-      marker.bindPopup(item.popup);
-      bounds.push([item.lat, item.lng]);
-    });
-
-    if (bounds.length > 1) {
-      map.fitBounds(bounds, {padding: [50, 50]});
-    }
-  </script>
+  <script src="{% static 'js/inspecoes_map.js' %}"></script>
 {% endblock %}

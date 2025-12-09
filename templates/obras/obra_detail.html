@@ -1,12 +1,12 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{{ obra.nome }}{% endblock %}
 
 {% block content %}
-<!-- Card principal com informações da obra e ações -->
 <div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <h1 class="h3 mb-0">{{ obra.nome }}</h1>
-    <div class="btn-group mt-2 mt-md-0">
+    <div class="btn-group">
       <a href="{% url 'obras:editar_obra' obra.id %}" class="btn btn-outline-secondary">
         <i class="bi bi-pencil"></i> Editar
       </a>
@@ -19,26 +19,109 @@
       <a href="{% url 'inspecoes:lista_obra' obra.id %}" class="btn btn-outline-primary">
         <i class="bi bi-map"></i> Ver no Mapa
       </a>
+      {% if obra.status != 'finalizada' %}
+      <form method="post" action="{% url 'obras:concluir_obra' obra.id %}" onsubmit="return confirm('Marcar obra como concluída?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-success">
+          <i class="bi bi-check2-circle"></i> Concluir Obra
+        </button>
+      </form>
+      {% endif %}
     </div>
   </div>
   <div class="card-body">
-    <div class="row">
+    <div class="row g-3">
       <div class="col-md-6">
+        <p><strong>Status:</strong> {{ obra.get_status_display }}</p>
         <p><strong>Cliente:</strong> {{ obra.cliente }}</p>
         <p><strong>Endereço:</strong> {{ obra.endereco }}</p>
       </div>
       <div class="col-md-6">
         <p><strong>Prazo final:</strong> {{ obra.data_fim_prevista|date:"d/m/Y" }}</p>
+        <p><strong>Custo previsto:</strong> {{ obra.custo_previsto|default:"—" }}</p>
+        <p><strong>Custo real:</strong> {{ obra.custo_real|default:"—" }}</p>
         <div>
           <strong>Conclusão Geral:</strong>
           <div class="progress mt-1" style="height: 25px;">
-            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: {{ percentual_concluido }}%;" aria-valuenow="{{ percentual_concluido }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar progress-bar-striped progress-bar-animated d-flex align-items-center justify-content-center fw-semibold" role="progressbar" style="width: {{ percentual_concluido }}%;" aria-valuenow="{{ percentual_concluido }}" aria-valuemin="0" aria-valuemax="100">
               {{ percentual_concluido }}%
             </div>
           </div>
         </div>
       </div>
+      {% if obra.capa %}
+      <div class="col-12">
+        <p class="mb-1"><strong>Foto da obra:</strong></p>
+        <img src="{{ obra.capa.url }}" alt="Capa da obra" class="img-fluid rounded shadow-sm" style="max-height: 260px; object-fit: cover;">
+      </div>
+      {% endif %}
     </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <p class="text-muted mb-1">Tarefas</p>
+        <h4 class="mb-0">{{ stats_resumo.total }}</h4>
+        <small>Total cadastradas</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <p class="text-muted mb-1">Concluídas</p>
+        <h4 class="mb-0 text-success">{{ stats_resumo.concluidas }}</h4>
+        <small>Entregues</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <p class="text-muted mb-1">Bloqueadas</p>
+        <h4 class="mb-0 text-warning">{{ stats_resumo.atrasadas }}</h4>
+        <small>Atenção</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if grafico_progresso.dias_totais %}
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Inspeções recentes (até 5)</span>
+    <div class="d-flex gap-2">
+      <a class="btn btn-sm btn-success" href="{% url 'inspecoes:nova_inspecao' obra.id %}"><i class="bi bi-clipboard-plus"></i> Nova inspeção</a>
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'inspecoes:lista_obra' obra.id %}"><i class="bi bi-geo-alt"></i> Ver todas</a>
+    </div>
+  </div>
+  <div class="card-body">
+    {% if inspecoes_recentes %}
+      <ul class="list-group list-group-flush">
+        {% for insp in inspecoes_recentes %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <a href="{% url 'inspecoes:detalhe_inspecao' insp.id %}" class="fw-semibold text-decoration-none">
+                {{ insp.data_inspecao|date:"d/m/Y" }} - {{ insp.usuario.username }}
+              </a>
+              <div class="small text-muted">
+                {{ insp.categoria|default_if_none:"Sem categoria" }} / {{ insp.tarefa|default_if_none:"Sem tarefa" }}
+              </div>
+            </div>
+            {% if insp.latitude and insp.longitude %}
+              <span class="badge bg-light text-dark"><i class="bi bi-geo-alt"></i> {{ insp.latitude }}, {{ insp.longitude }}</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mb-0 text-muted">Nenhuma inspeção registrada ainda.</p>
+    {% endif %}
   </div>
 </div>
 
@@ -49,7 +132,31 @@
   </a>
 </div>
 
-<!-- Acordeão para as categorias -->
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Anexos</span>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'obras:novo_anexo' obra.id %}"><i class="bi bi-paperclip"></i> Novo anexo</a>
+  </div>
+  <div class="card-body">
+    {% if anexos %}
+      <ul class="list-group list-group-flush">
+        {% for anexo in anexos %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-paperclip me-2"></i>
+              <a href="{{ anexo.arquivo.url }}" target="_blank">{{ anexo.descricao|default:anexo.arquivo.name }}</a>
+              {% if anexo.categoria %}<span class="badge bg-light text-dark ms-2">{{ anexo.categoria.nome }}</span>{% endif %}
+              <small class="d-block text-muted">Enviado por {{ anexo.enviado_por|default:'N/A' }} em {{ anexo.enviado_em|date:"d/m/Y H:i" }}</small>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mb-0 text-muted">Nenhum anexo ainda.</p>
+    {% endif %}
+  </div>
+</div>
+
 <div class="accordion" id="accordionCategorias">
   {% for categoria in categorias %}
     <div class="accordion-item">
@@ -61,8 +168,8 @@
               <span class="badge rounded-pill bg-primary">{{ categoria.tarefas.all|length }} tarefa(s)</span>
             </div>
             <div class="progress category-progress" data-category-id="{{ categoria.id }}" style="width: 200px; height: 15px;">
-              <div class="progress-bar" role="progressbar" style="width: {{ categoria.percentual_concluido }}%;" aria-valuenow="{{ categoria.percentual_concluido }}" aria-valuemin="0" aria-valuemax="100" >
-                <small>{{ categoria.percentual_concluido }}%</small>
+              <div class="progress-bar d-flex align-items-center justify-content-center" role="progressbar" style="width: {{ categoria.percentual_concluido }}%;" aria-valuenow="{{ categoria.percentual_concluido }}" aria-valuemin="0" aria-valuemax="100" >
+                <span class="progress-label">{{ categoria.percentual_concluido }}%</span>
               </div>
             </div>
           </div>
@@ -78,7 +185,7 @@
                     <a href="{% url 'obras:editar_tarefa' tarefa.id %}" class="btn btn-sm btn-outline-secondary me-2 py-0 px-1">
                       <i class="bi bi-pencil"></i>
                     </a>
-                    <strong>{{ tarefa.nome }}</strong> - 
+                    <strong>{{ tarefa.nome }}</strong> -
                     <span class="badge bg-info text-dark task-progress" data-task-id="{{ tarefa.id }}" data-category-id="{{ categoria.id }}" style="cursor: pointer;" title="Clique para editar">
                       {{ tarefa.percentual_concluido }}%</span>
                   </div>
@@ -87,10 +194,18 @@
                       <span class="badge bg-success me-3">Concluída</span>
                     {% elif tarefa.status == 'andamento' %}
                       <span class="badge bg-primary me-3">Em andamento</span>
-                    {% elif tarefa.status == 'pendente' %}<span class="badge bg-warning text-dark me-3">Pendente</span>
-                    {% else %}<span class="badge bg-secondary me-3">Não Iniciada</span>
+                    {% elif tarefa.status == 'bloqueada' %}
+                      <span class="badge bg-warning text-dark me-3">Bloqueada</span>
+                    {% else %}
+                      <span class="badge bg-secondary me-3">Não iniciada</span>
                     {% endif %}
-                    <small class="text-muted">Previsto: {{ tarefa.data_fim_prevista|date:"d/m/Y" }}</small>
+                    <small class="text-muted" id="task-date-wrapper-{{ tarefa.id }}">
+                      {% if tarefa.data_fim_real %}
+                        <strong>Concluído em: {{ tarefa.data_fim_real|date:"d/m/Y" }}</strong>
+                      {% else %}
+                        Previsto: {{ tarefa.data_fim_prevista|date:"d/m/Y" }}
+                      {% endif %}
+                    </small>
                   </div>
                 </li>
               {% endfor %}
@@ -114,107 +229,7 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    // Função para obter o token CSRF dos cookies
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    const csrftoken = getCookie('csrftoken');
-
-    const progressSpans = document.querySelectorAll('.task-progress');
-
-    progressSpans.forEach(span => {
-        span.addEventListener('click', function () {
-            const currentProgress = this.textContent.replace('%', '');
-            const taskId = this.dataset.taskId;
-            const categoryId = this.dataset.categoryId;
-
-            // Cria um input do tipo range (slider)
-            const input = document.createElement('input');
-            input.type = 'range';
-            input.min = 0;
-            input.max = 100;
-            input.value = currentProgress;
-            input.classList.add('form-range');
-            input.style.width = '100px';
-
-            // Substitui o span pelo input
-            this.style.display = 'none';
-            this.parentNode.insertBefore(input, this.nextSibling);
-            input.focus();
-
-            // Evento para quando o valor do slider for alterado
-            const handleUpdate = function() {
-                const newProgress = input.value;
-
-                // Se for 100%, pede confirmação
-                if (newProgress == 100) {
-                    if (!confirm("Você confirma a finalização desta tarefa? A data de conclusão será registrada.")) {
-                        // Se o usuário cancelar, restaura a UI e não faz nada
-                        input.parentNode.removeChild(input);
-                        span.style.display = 'inline-block';
-                        return;
-                    }
-                }
-
-                fetch("{% url 'obras:update_task_progress' %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken
-                    },
-                    body: JSON.stringify({ task_id: taskId, progress: newProgress })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Atualiza o texto do span e o exibe novamente
-                        span.textContent = newProgress + '%';
-                        
-                        // Atualiza a barra de progresso da categoria
-                        const categoryProgressDiv = document.querySelector(`.category-progress[data-category-id="${categoryId}"] .progress-bar`);
-                        categoryProgressDiv.style.width = data.new_category_progress + '%';
-                        categoryProgressDiv.querySelector('small').textContent = data.new_category_progress + '%';
-
-                        // Atualiza o badge de status da tarefa
-                        const statusWrapper = document.getElementById(`task-status-wrapper-${taskId}`);
-                        const statusBadge = statusWrapper.querySelector('.badge');
-                        statusBadge.textContent = data.task_status_display;
-
-                        // Remove classes de cor antigas e adiciona a nova
-                        statusBadge.classList.remove('bg-success', 'bg-primary', 'bg-warning', 'bg-secondary');
-                        if (data.task_status === 'concluida') {
-                            statusBadge.classList.add('bg-success');
-                        } else if (data.task_status === 'andamento') {
-                            statusBadge.classList.add('bg-primary');
-                        } else {
-                            statusBadge.classList.add('bg-secondary');
-                        }
-
-                    }
-                })
-                .finally(() => {
-                    // Remove o input e mostra o span novamente
-                    input.parentNode.removeChild(input);
-                    span.style.display = 'inline-block';
-                });
-            };
-
-            input.addEventListener('change', handleUpdate);
-            input.addEventListener('blur', handleUpdate);
-        });
-    });
-});
+  window.updateTaskProgressUrl = "{% url 'obras:update_task_progress' %}";
 </script>
+<script src="{% static 'js/obras.js' %}"></script>
 {% endblock %}

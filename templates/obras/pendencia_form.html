@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Nova Pendência{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'obras:listar_obras' %}">Obras</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'obras:detalhe_obra' obra.id %}">{{ obra.nome }}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Nova Pendência</li>
+    </ol>
+  </nav>
+
+  <div class="card">
+    <div class="card-body">
+      <h1 class="h4 mb-3">Nova Pendência para "{{ obra.nome }}"</h1>
+      <form method="post">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-danger">Salvar Pendência</button>
+          <a href="{% url 'obras:detalhe_obra' obra.id %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

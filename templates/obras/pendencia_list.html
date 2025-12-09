@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Pendências{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+  <div>
+    <p class="text-danger fw-semibold mb-1">Pendências</p>
+    <h2 class="mb-1">Backlog de pendências</h2>
+    <p class="text-muted mb-0">Visualize e filtre todas as pendências abertas, em andamento ou resolvidas.</p>
+  </div>
+  <a href="{% url 'obras:listar_obras' %}" class="btn btn-outline-secondary">Voltar para obras</a>
+</div>
+
+<ul class="nav nav-pills mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == '' %}active{% endif %}" href="?">Todas ({{ pendencias|length }})</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'aberta' %}active{% endif %}" href="?status=aberta">Abertas ({{ counts.aberta|default:0 }})</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'andamento' %}active{% endif %}" href="?status=andamento">Em andamento ({{ counts.andamento|default:0 }})</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'resolvida' %}active{% endif %}" href="?status=resolvida">Resolvidas ({{ counts.resolvida|default:0 }})</a>
+  </li>
+</ul>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form class="row g-2 align-items-center" method="get">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <div class="col-lg-8">
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="search" name="q" class="form-control" placeholder="Buscar por obra, tarefa ou descrição" value="{{ search_query }}">
+        </div>
+      </div>
+      <div class="col-lg-4 d-flex gap-2 justify-content-lg-end">
+        <button class="btn btn-outline-secondary" type="submit">
+          <i class="bi bi-search"></i> Buscar
+        </button>
+        <a class="btn btn-outline-light border" href="{% url 'obras:listar_pendencias' %}">Limpar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if pendencias %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Obra</th>
+        <th>Tarefa</th>
+        <th>Descrição</th>
+        <th>Prioridade</th>
+        <th>Status</th>
+        <th>Data limite</th>
+        <th>Abertura</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pendencias %}
+        <tr>
+          <td>
+            <a href="{% url 'obras:detalhe_obra' p.obra.id %}" class="text-decoration-none">{{ p.obra.nome }}</a>
+          </td>
+          <td>{{ p.tarefa.nome }}</td>
+          <td class="text-truncate" style="max-width: 260px;">{{ p.descricao }}</td>
+          <td>
+            <span class="badge 
+              {% if p.prioridade == 'alta' %}bg-danger
+              {% elif p.prioridade == 'media' %}bg-warning text-dark
+              {% else %}bg-secondary{% endif %}">
+              {{ p.get_prioridade_display }}
+            </span>
+          </td>
+          <td>
+            <span class="badge 
+              {% if p.status == 'aberta' %}bg-danger
+              {% elif p.status == 'andamento' %}bg-primary
+              {% else %}bg-success{% endif %}">
+              {{ p.get_status_display }}
+            </span>
+          </td>
+          <td>{{ p.data_limite|date:"d/m/Y"|default:"—" }}</td>
+          <td>{{ p.data_abertura|date:"d/m/Y H:i" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <p class="text-center text-muted mb-0">Nenhuma pendência encontrada.</p>
+{% endif %}
+{% endblock %}

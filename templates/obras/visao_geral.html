@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Visão Geral{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+  <div>
+    <p class="text-primary fw-semibold mb-1">Visão Geral</p>
+    <h2 class="mb-1">Todas as obras</h2>
+    <p class="text-muted mb-0">Percentual concluído, pendências abertas, prazo final e dias restantes.</p>
+  </div>
+  <a href="{% url 'obras:nova_obra' %}" class="btn btn-outline-primary">
+    <i class="bi bi-plus-circle"></i> Nova obra
+  </a>
+</div>
+
+{% if obras %}
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <div>
+        <h5 class="mb-0">Progresso das obras</h5>
+        <small class="text-muted">Percentual concluído vs dias (cada linha é uma obra)</small>
+      </div>
+    </div>
+    <canvas id="obrasChart" height="80"></canvas>
+    {{ chart_lines|json_script:"obras-data" }}
+  </div>
+</div>
+{% endif %}
+
+{% if obras %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Obra</th>
+        <th>Cliente</th>
+        <th>Progresso</th>
+        <th>Pendências abertas</th>
+        <th>Prazo final</th>
+        <th>Dias restantes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obra in obras %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ obra.nome }}</div>
+            <small class="text-muted">{{ obra.endereco }}</small>
+          </td>
+          <td>{{ obra.cliente|default:"—" }}</td>
+          <td style="min-width:180px;">
+            <div class="d-flex justify-content-between">
+              <small class="text-muted">{% if obra.status == 'finalizada' %}Concluído{% else %}Em andamento{% endif %}</small>
+              <small class="fw-semibold">{{ obra.perc_concluido }}%</small>
+            </div>
+            <div class="progress" style="height: 10px;">
+              <div class="progress-bar" role="progressbar" style="width: {{ obra.perc_concluido }}%;" aria-valuenow="{{ obra.perc_concluido }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </td>
+          <td>
+            {% if obra.pendencias_abertas %}
+              <span class="badge bg-danger">{{ obra.pendencias_abertas }} aberta(s)</span>
+            {% else %}
+              <span class="badge bg-success">0</span>
+            {% endif %}
+          </td>
+          <td>{{ obra.data_fim_prevista|date:"d/m/Y"|default:"—" }}</td>
+          <td>
+            {% if obra.dias_restantes is not None %}
+              {% if obra.dias_restantes < 0 %}
+                <span class="text-danger">{{ obra.dias_restantes }} dias (vencido)</span>
+              {% else %}
+                <span class="text-muted">{{ obra.dias_restantes }} dias</span>
+              {% endif %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'obras:detalhe_obra' obra.id %}">Ver</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <p class="text-center text-muted mb-0">Nenhuma obra cadastrada.</p>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  (function() {
+    const dataEl = document.getElementById('obras-data');
+    if (!dataEl) return;
+    const obras = JSON.parse(dataEl.textContent);
+    if (!obras.length) return;
+
+    const palette = ['#0d6efd', '#198754', '#fd7e14', '#6610f2', '#dc3545', '#0dcaf0'];
+    const datasets = obras.map((o, idx) => {
+      const color = palette[idx % palette.length];
+      return {
+        label: o.nome,
+        data: o.pontos,
+        borderColor: color,
+        backgroundColor: color + '33',
+        fill: false,
+        tension: 0.2,
+        pointRadius: 4,
+        pointBackgroundColor: color,
+      };
+    });
+
+    const ctx = document.getElementById('obrasChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        parsing: false,
+        plugins: {
+          legend: { display: true },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}% (dia ${ctx.parsed.x})`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Dias' },
+            ticks: { stepSize: 5 }
+          },
+          y: {
+            suggestedMin: 0,
+            suggestedMax: 100,
+            ticks: { callback: (v) => v + '%' },
+            title: { display: true, text: '% Concluído' }
+          }
+        }
+      }
+    });
+  })();
+</script>
+{% endblock %}

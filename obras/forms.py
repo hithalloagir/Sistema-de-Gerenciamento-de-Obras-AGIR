@@ -1,5 +1,5 @@
 from django import forms
-from .models import Obra, Categoria, Pendencia, Tarefa
+from .models import Obra, Categoria, Pendencia, Tarefa, AnexoObra
 
 
 class ObraForm(forms.ModelForm):
@@ -11,6 +11,10 @@ class ObraForm(forms.ModelForm):
             "endereco",
             "data_inicio",
             "data_fim_prevista",
+            "capa",
+            "status",
+            "custo_previsto",
+            "custo_real",
         ]
         widgets = {
             "data_inicio": forms.DateInput(attrs={"type": "date"}),
@@ -51,7 +55,10 @@ class TarefaForm(forms.ModelForm):
 class PendenciaForm(forms.ModelForm):
     class Meta:
         model = Pendencia
-        fields = ["tarefa", "descricao", "prioridade", "responsavel"]
+        fields = ["tarefa", "descricao", "prioridade", "responsavel", "data_limite"]
+        widgets = {
+            "data_limite": forms.DateInput(attrs={"type": "date"}),
+        }
 
     def __init__(self, *args, **kwargs):
         obra = kwargs.pop("obra", None)
@@ -62,3 +69,9 @@ class PendenciaForm(forms.ModelForm):
 
 # Formset para adicionar categorias ao criar uma obra
 CategoriaInlineFormSet = forms.inlineformset_factory(Obra, Categoria, form=CategoriaForm, extra=2, can_delete=False)
+
+
+class AnexoObraForm(forms.ModelForm):
+    class Meta:
+        model = AnexoObra
+        fields = ["arquivo", "descricao", "categoria"]
