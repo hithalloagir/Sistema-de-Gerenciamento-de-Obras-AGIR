@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 
-from .models import Obra, Categoria, Tarefa, Pendencia, AnexoObra
+from .models import Obra, Categoria, Tarefa, Pendencia, AnexoObra, SolucaoPendencia
 from .forms import (
     ObraForm,
     CategoriaForm,
@@ -379,3 +379,52 @@ class PendenciaListView(LoginRequiredMixin, ListView):
         context["status_filter"] = self.request.GET.get("status", "")
         context["search_query"] = self.request.GET.get("q", "")
         return context
+
+
+class PendenciaDetailView(LoginRequiredMixin, DetailView):
+    model = Pendencia
+    template_name = "obras/pendencia_detail.html"
+    context_object_name = "pendencia"
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related("obra", "tarefa", "responsavel", "categoria")
+            .prefetch_related("solucoes__usuario")
+        )
+
+
+class PendenciaUpdateStatusView(RoleRequiredMixin, View):
+    allowed_roles = ["admin", "avaliador", "gerente", "engenheiro", "fiscal"]
+
+    def post(self, request, pk):
+        pendencia = get_object_or_404(Pendencia, pk=pk)
+        novo_status = request.POST.get("novo_status")
+        solucao_texto = request.POST.get("solucao", "").strip()
+
+        if novo_status not in ["andamento", "resolvida"]:
+            messages.error(request, "Status inválido para atualização.")
+            return redirect("obras:detalhe_pendencia", pk=pendencia.pk)
+
+        if novo_status == "resolvida":
+            if not solucao_texto:
+                messages.error(request, "Informe a solução para marcar como resolvida.")
+                return redirect("obras:detalhe_pendencia", pk=pendencia.pk)
+            pendencia.status = "resolvida"
+            pendencia.save(update_fields=["status", "data_fechamento", "atualizado_em"])
+            SolucaoPendencia.objects.create(
+                pendencia=pendencia,
+                usuario=request.user,
+                descricao=solucao_texto,
+            )
+            messages.success(request, "Pendência marcada como resolvida.")
+        else:
+            if pendencia.status != "andamento":
+                pendencia.status = "andamento"
+                pendencia.save(update_fields=["status", "data_fechamento", "atualizado_em"])
+                messages.success(request, "Pendência marcada como em andamento.")
+            else:
+                messages.info(request, "Pendência já está em andamento.")
+
+        return redirect("obras:detalhe_pendencia", pk=pendencia.pk)

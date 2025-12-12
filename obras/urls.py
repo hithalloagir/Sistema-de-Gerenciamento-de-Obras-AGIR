@@ -17,4 +17,6 @@ urlpatterns = [
     path("tarefa/update-progress/", views.update_task_progress, name="update_task_progress"),
     path("<int:pk>/concluir/", views.ConcluirObraView.as_view(), name="concluir_obra"),
     path("pendencias/", views.PendenciaListView.as_view(), name="listar_pendencias"),
+    path("pendencias/<int:pk>/", views.PendenciaDetailView.as_view(), name="detalhe_pendencia"),
+    path("pendencias/<int:pk>/atualizar/", views.PendenciaUpdateStatusView.as_view(), name="atualizar_pendencia"),
 ]

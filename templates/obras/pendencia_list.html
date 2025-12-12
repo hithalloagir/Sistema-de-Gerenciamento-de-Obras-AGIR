@@ -58,6 +58,7 @@
         <th>Status</th>
         <th>Data limite</th>
         <th>Abertura</th>
+        <th class="text-end">Ações</th>
       </tr>
     </thead>
     <tbody>
@@ -67,7 +68,9 @@
             <a href="{% url 'obras:detalhe_obra' p.obra.id %}" class="text-decoration-none">{{ p.obra.nome }}</a>
           </td>
           <td>{{ p.tarefa.nome }}</td>
-          <td class="text-truncate" style="max-width: 260px;">{{ p.descricao }}</td>
+          <td class="text-truncate" style="max-width: 260px;">
+            <a href="{% url 'obras:detalhe_pendencia' p.id %}" class="text-decoration-none">{{ p.descricao }}</a>
+          </td>
           <td>
             <span class="badge 
               {% if p.prioridade == 'alta' %}bg-danger
@@ -86,6 +89,9 @@
           </td>
           <td>{{ p.data_limite|date:"d/m/Y"|default:"—" }}</td>
           <td>{{ p.data_abertura|date:"d/m/Y H:i" }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'obras:detalhe_pendencia' p.id %}">Ver</a>
+          </td>
         </tr>
       {% endfor %}
     </tbody>

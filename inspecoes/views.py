@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import CreateView, ListView, DetailView
 
-from .models import Inspecao
+from .models import Inspecao, InspecaoFoto
 from .forms import InspecaoForm
 from obras.models import Obra
 from accounts.mixins import RoleRequiredMixin

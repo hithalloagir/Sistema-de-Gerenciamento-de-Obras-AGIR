@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Pendência {{ pendencia.id }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'obras:listar_pendencias' %}">Pendências</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Pendência #{{ pendencia.id }}</li>
+  </ol>
+</nav>
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <p class="text-muted mb-1">Pendência #{{ pendencia.id }}</p>
+      <h1 class="h4 mb-0">{{ pendencia.descricao }}</h1>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <span class="badge {% if pendencia.status == 'aberta' %}bg-danger{% elif pendencia.status == 'andamento' %}bg-primary{% else %}bg-success{% endif %}">{{ pendencia.get_status_display }}</span>
+      <span class="badge {% if pendencia.prioridade == 'alta' %}bg-danger{% elif pendencia.prioridade == 'media' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ pendencia.get_prioridade_display }}</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <p class="mb-1 text-muted">Obra</p>
+        <p class="mb-0"><a href="{% url 'obras:detalhe_obra' pendencia.obra.id %}">{{ pendencia.obra.nome }}</a></p>
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1 text-muted">Tarefa</p>
+        <p class="mb-0">{{ pendencia.tarefa.nome }}</p>
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1 text-muted">Responsável</p>
+        <p class="mb-0">{{ pendencia.responsavel|default:"—" }}</p>
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1 text-muted">Categoria</p>
+        <p class="mb-0">{{ pendencia.categoria|default:"—" }}</p>
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1 text-muted">Data limite</p>
+        <p class="mb-0">{{ pendencia.data_limite|date:"d/m/Y"|default:"—" }}</p>
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1 text-muted">Abertura</p>
+        <p class="mb-0">{{ pendencia.data_abertura|date:"d/m/Y H:i" }}</p>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <p class="mb-1 text-muted">Descrição</p>
+      <p class="mb-0">{{ pendencia.descricao }}</p>
+    </div>
+  </div>
+  <div class="card-footer d-flex flex-wrap gap-2 justify-content-between">
+    <div class="d-flex gap-2 flex-wrap">
+      {% if pendencia.status != 'resolvida' %}
+        <form method="post" action="{% url 'obras:atualizar_pendencia' pendencia.id %}" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="novo_status" value="andamento">
+          <button type="submit" class="btn btn-outline-primary btn-sm">Marcar como em andamento</button>
+        </form>
+        <button class="btn btn-success btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#resolverForm" aria-expanded="false" aria-controls="resolverForm">
+          Resolver pendência
+        </button>
+      {% else %}
+        <span class="text-success small d-inline-flex align-items-center"><i class="bi bi-check-circle me-1"></i>Resolvida em {{ pendencia.data_fechamento|date:"d/m/Y H:i"|default:"—" }}</span>
+      {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'obras:listar_pendencias' %}">Voltar para backlog</a>
+      <a class="btn btn-outline-primary btn-sm" href="{% url 'obras:detalhe_obra' pendencia.obra.id %}">Ir para obra relacionada</a>
+    </div>
+  </div>
+</div>
+
+{% if pendencia.status != 'resolvida' %}
+<div class="collapse mb-4" id="resolverForm">
+  <div class="card border-success">
+    <div class="card-header bg-success text-white">Resolver pendência</div>
+    <div class="card-body">
+      <form method="post" action="{% url 'obras:atualizar_pendencia' pendencia.id %}" class="row g-3">
+        {% csrf_token %}
+        <input type="hidden" name="novo_status" value="resolvida">
+        <div class="col-12">
+          <label class="form-label">Solução adotada</label>
+          <textarea name="solucao" class="form-control" rows="3" required></textarea>
+          <div class="form-text">Obrigatório para marcar como resolvida.</div>
+        </div>
+        <div class="col-12 d-flex gap-2">
+          <button type="submit" class="btn btn-success">Confirmar resolução</button>
+          <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#resolverForm">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Soluções registradas</span>
+  </div>
+  <div class="card-body">
+    {% if pendencia.solucoes.all %}
+      <ul class="list-group list-group-flush">
+        {% for solucao in pendencia.solucoes.all %}
+          <li class="list-group-item">
+            <div class="d-flex justify-content-between">
+              <div>
+                <strong>{{ solucao.usuario|default:"Usuário removido" }}</strong>
+                <div class="small text-muted">{{ solucao.data_hora|date:"d/m/Y H:i" }}</div>
+              </div>
+            </div>
+            <p class="mb-0 mt-2">{{ solucao.descricao }}</p>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mb-0 text-muted">Nenhuma solução registrada ainda.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const resolverFormEl = document.getElementById('resolverForm');
+  if (resolverFormEl) {
+    resolverFormEl.addEventListener('shown.bs.collapse', function () {
+      const textarea = resolverFormEl.querySelector('textarea');
+      if (textarea) { textarea.focus(); }
+    });
+  }
+</script>
+{% endblock %}
