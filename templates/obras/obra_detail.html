@@ -10,7 +10,7 @@
       <a href="{% url 'obras:editar_obra' obra.id %}" class="btn btn-outline-secondary">
         <i class="bi bi-pencil"></i> Editar
       </a>
-      <a href="{% url 'obras:nova_pendencia' obra.id %}" class="btn btn-outline-danger">
+      {% comment %} <a href="{% url 'obras:nova_pendencia' obra.id %}" class="btn btn-outline-danger">
         <i class="bi bi-exclamation-triangle"></i> Nova Pendência
       </a>
       <a href="{% url 'inspecoes:nova_inspecao' obra.id %}" class="btn btn-success">
@@ -18,7 +18,7 @@
       </a>
       <a href="{% url 'inspecoes:lista_obra' obra.id %}" class="btn btn-outline-primary">
         <i class="bi bi-map"></i> Ver no Mapa
-      </a>
+      </a> {% endcomment %}
       {% if obra.status != 'finalizada' %}
       <form method="post" action="{% url 'obras:concluir_obra' obra.id %}" onsubmit="return confirm('Marcar obra como concluída?');">
         {% csrf_token %}

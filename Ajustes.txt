@@ -1,0 +1,52 @@
+ENGENHEIRO - acessa tudo, não cria obra e não conclui obra
+avaliador - 
+
+retirar o custo
+
+se concluir errado, é preciso chamar o adm
+
+Duplicar obras, categorias e tarefas
+
+Gerar relatório
+
+No inicio, progresso e progresso esperado
+
+Mudar as roles para níveis
+
+O nível só pode criar o inferior 
+
+Obra concluída ela pode aparecer no visão geral, só para ter uma base de quanto tempo demorou a progressão dos seus itens
+Não pode mais editar, Adicionar pendencia, registar inspeção, não pode mais cadastrar categoria e tarefa nem anexo, só visualizar 
+
+
+Futuro
+Evolução do sistema
+- Inspeção das unidades
+
+Para ajustar (hoje)
+
+- Retirar o Cadastro de "Custos" ()
+- Mudar as roles para níveis ()
+- Na tela inicial 
+	- Ter Progresso Real da obra e Progresso Esperado ()
+- Ajustar as permissões dos níveis ()
+- Criação de usuário nível 1 para o nível 2
+- Ajustar o gráfico de visão geral ()
+- Ajustar toda a tela de visão geral ()
+- Ser obrigatório clicar em capturar localização para salvar inspeção ()
+- O backlog de pendencias vai ser baseado no nível do usuário, o ADM vê tudo e os outros níveis só vê os da sua obra ()
+- Deixar todo o projeto profissional, no quesito estrutura e código () 
+
+Para ajustar na terça
+- Subir o site gratuitamente e fazer testes ()
+
+
+- Relacionado aos usuários
+	- Administrador (Acesso a tudo, criação de tudo, visualização de tudo que tem no sistema)
+	- Nível 2
+		- Acesso a obra alocada pelo o ADM, pode criar usuário de níveis abaixo, pode CRUD de categorias, tarefas, pendencias (no caso só tendo acesso a obra alocada), não pode concluir a obra
+	- Nível 1
+		- Só consegue visualizar a obra para qual foi alocado, não consegue editar a obra, não pode concluir a obra, consegue abrir pendencias e resolver elas, consegue adicionar uma inspeção, consegue visualizar a inspeção
+		- Pode adicionar anexos
+		- Pode mover a porcentagem da tarefa criada 
+		- Se colocar como concluída, ele não pode editar mais a tarefa, caso tenha feito errado, vai ser necessário chamar o nível 2, onde o mesmo vai poder editar mesma
