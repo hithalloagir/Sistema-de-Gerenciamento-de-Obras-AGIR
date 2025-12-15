@@ -89,39 +89,192 @@
   </div>
 </div>
 
-{% if grafico_progresso.dias_totais %}
-{% endif %}
 
-<div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span>Inspeções recentes (até 5)</span>
+<div class="card mb-4" id="pendencias">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <p class="text-muted mb-1">Pendências da obra</p>
+      <h3 class="h5 mb-0">Pendências</h3>
+    </div>
+    <a class="btn btn-sm btn-outline-danger" href="{% url 'obras:nova_pendencia' obra.id %}"><i class="bi bi-plus-circle"></i> Nova pendência</a>
+  </div>
+  <div class="card-body">
+    <ul class="nav nav-pills mb-3">
+      <li class="nav-item">
+        <a class="nav-link {% if pendencias_status == 'aberta' %}active{% endif %}" href="?pend_status=aberta#pendencias">Abertas ({{ pendencias_counts.aberta|default:0 }})</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if pendencias_status == 'andamento' %}active{% endif %}" href="?pend_status=andamento#pendencias">Em andamento ({{ pendencias_counts.andamento|default:0 }})</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if pendencias_status == 'resolvida' %}active{% endif %}" href="?pend_status=resolvida#pendencias">Resolvidas ({{ pendencias_counts.resolvida|default:0 }})</a>
+      </li>
+    </ul>
+
+    {% if pendencias %}
+      <div class="table-responsive">
+        <table class="table align-middle table-hover">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Pendência</th>
+              <th scope="col" class="text-center">Status</th>
+              <th scope="col">Prazos</th>
+              <th scope="col" class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pendencia in pendencias %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ pendencia.descricao }}</div>
+                  <div class="small text-muted">
+                    {{ pendencia.tarefa.nome }} {% if pendencia.categoria %}- {{ pendencia.categoria.nome }}{% endif %}
+                  </div>
+                  {% if pendencia.responsavel %}
+                    <div class="small text-muted">Responsável: {{ pendencia.responsavel }}</div>
+                  {% endif %}
+                  <div class="mt-1">
+                    <span class="badge {% if pendencia.prioridade == 'alta' %}bg-danger{% elif pendencia.prioridade == 'media' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">Prioridade {{ pendencia.get_prioridade_display }}</span>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <span class="badge {% if pendencia.status == 'resolvida' %}bg-success{% elif pendencia.status == 'andamento' %}bg-primary{% else %}bg-danger{% endif %}">{{ pendencia.get_status_display }}</span>
+                </td>
+                <td class="small">
+                  <div class="text-muted">Abertura: {{ pendencia.data_abertura|date:"d/m/Y H:i" }}</div>
+                  <div class="text-muted">Limite: {{ pendencia.data_limite|date:"d/m/Y"|default:"Sem prazo" }}</div>
+                  {% if pendencia.data_fechamento %}
+                    <div class="text-success">Fechamento: {{ pendencia.data_fechamento|date:"d/m/Y H:i" }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <div class="d-flex justify-content-end flex-wrap gap-2">
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'obras:detalhe_pendencia' pendencia.id %}">Ver detalhes</a>
+                    {% if pendencia.status != 'resolvida' %}
+                      {% if pendencia.status != 'andamento' %}
+                        <form method="post" action="{% url 'obras:atualizar_pendencia' pendencia.id %}" class="d-inline">
+                          {% csrf_token %}
+                          <input type="hidden" name="novo_status" value="andamento">
+                          <input type="hidden" name="next" value="{{ pendencias_redirect }}#pendencias">
+                          <button type="submit" class="btn btn-sm btn-outline-primary">Em andamento</button>
+                        </form>
+                      {% endif %}
+                      <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#resolverPendenciaModal" data-update-url="{% url 'obras:atualizar_pendencia' pendencia.id %}" data-descricao="{{ pendencia.descricao|escapejs }}">
+                        Resolver
+                      </button>
+                    {% else %}
+                      <span class="text-success small d-flex align-items-center"><i class="bi bi-check-circle me-1"></i> Resolvida</span>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="mb-0 text-muted">Nenhuma pendência encontrada neste filtro.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-4" id="inspecoes">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <p class="text-muted mb-1">Inspeções registradas</p>
+      <h3 class="h5 mb-0">Inspeções ({{ inspecoes_total }})</h3>
+    </div>
     <div class="d-flex gap-2">
       <a class="btn btn-sm btn-success" href="{% url 'inspecoes:nova_inspecao' obra.id %}"><i class="bi bi-clipboard-plus"></i> Nova inspeção</a>
-      <a class="btn btn-sm btn-outline-primary" href="{% url 'inspecoes:lista_obra' obra.id %}"><i class="bi bi-geo-alt"></i> Ver todas</a>
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'inspecoes:lista_obra' obra.id %}"><i class="bi bi-geo-alt"></i> Ver no mapa</a>
     </div>
   </div>
   <div class="card-body">
-    {% if inspecoes_recentes %}
-      <ul class="list-group list-group-flush">
-        {% for insp in inspecoes_recentes %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-              <a href="{% url 'inspecoes:detalhe_inspecao' insp.id %}" class="fw-semibold text-decoration-none">
-                {{ insp.data_inspecao|date:"d/m/Y" }} - {{ insp.usuario.username }}
-              </a>
-              <div class="small text-muted">
-                {{ insp.categoria|default_if_none:"Sem categoria" }} / {{ insp.tarefa|default_if_none:"Sem tarefa" }}
-              </div>
-            </div>
-            {% if insp.latitude and insp.longitude %}
-              <span class="badge bg-light text-dark"><i class="bi bi-geo-alt"></i> {{ insp.latitude }}, {{ insp.longitude }}</span>
-            {% endif %}
+    {% if inspecoes_page.object_list %}
+      <div class="table-responsive mb-3">
+        <table class="table align-middle table-hover">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Data</th>
+              <th scope="col">Usuário</th>
+              <th scope="col">Categoria / Tarefa</th>
+              <th scope="col">Coordenadas</th>
+              <th scope="col" class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for insp in inspecoes_page %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ insp.data_inspecao|date:"d/m/Y" }}</div>
+                  <div class="text-muted small">{{ insp.data_hora|date:"H:i" }}</div>
+                </td>
+                <td>{{ insp.usuario.username }}</td>
+                <td class="small">
+                  {{ insp.categoria|default_if_none:"Sem categoria" }}<br>
+                  {{ insp.tarefa|default_if_none:"Sem tarefa" }}
+                </td>
+                <td>
+                  {% if insp.latitude and insp.longitude %}
+                    <span class="badge bg-light text-dark">
+                      <i class="bi bi-geo-alt-fill"></i>
+                      {{ insp.latitude|floatformat:6 }}, {{ insp.longitude|floatformat:6 }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted small">Sem coordenadas</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'inspecoes:detalhe_inspecao' insp.id %}">Ver detalhes</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <nav aria-label="Paginação das inspeções">
+        <ul class="pagination justify-content-end mb-0">
+          <li class="page-item {% if not inspecoes_page.has_previous %}disabled{% endif %}">
+            <a class="page-link" href="{% if inspecoes_page.has_previous %}?insp_page={{ inspecoes_page.previous_page_number }}{% if pendencias_status %}&pend_status={{ pendencias_status }}{% endif %}#inspecoes{% else %}#{% endif %}">Anterior</a>
           </li>
-        {% endfor %}
-      </ul>
+          <li class="page-item disabled">
+            <span class="page-link">Página {{ inspecoes_page.number }} de {{ inspecoes_page.paginator.num_pages }}</span>
+          </li>
+          <li class="page-item {% if not inspecoes_page.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{% if inspecoes_page.has_next %}?insp_page={{ inspecoes_page.next_page_number }}{% if pendencias_status %}&pend_status={{ pendencias_status }}{% endif %}#inspecoes{% else %}#{% endif %}">Próxima</a>
+          </li>
+        </ul>
+      </nav>
     {% else %}
       <p class="mb-0 text-muted">Nenhuma inspeção registrada ainda.</p>
     {% endif %}
+  </div>
+</div>
+
+
+<div class="modal fade" id="resolverPendenciaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" id="resolverPendenciaForm">
+      {% csrf_token %}
+      <input type="hidden" name="novo_status" value="resolvida">
+      <input type="hidden" name="next" value="{{ pendencias_redirect }}#pendencias">
+      <div class="modal-header">
+        <h5 class="modal-title">Resolver pendência</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-2" id="resolverPendenciaDescricao"></p>
+        <div class="mb-3">
+          <label class="form-label" for="resolverPendenciaSolucao">Solução adotada</label>
+          <textarea class="form-control" name="solucao" id="resolverPendenciaSolucao" rows="3" required></textarea>
+          <div class="form-text">Obrigatório para concluir a pendência.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-success">Marcar como resolvida</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -230,6 +383,29 @@
 {% block extra_js %}
 <script>
   window.updateTaskProgressUrl = "{% url 'obras:update_task_progress' %}";
+  const resolverPendenciaModal = document.getElementById('resolverPendenciaModal');
+  if (resolverPendenciaModal) {
+    resolverPendenciaModal.addEventListener('show.bs.modal', function (event) {
+      const button = event.relatedTarget;
+      const updateUrl = button ? button.getAttribute('data-update-url') : null;
+      const descricao = button ? button.getAttribute('data-descricao') : '';
+      const form = document.getElementById('resolverPendenciaForm');
+      const descEl = document.getElementById('resolverPendenciaDescricao');
+      if (form && updateUrl) {
+        form.action = updateUrl;
+      }
+      if (descEl) {
+        descEl.textContent = descricao || '';
+      }
+      if (form) {
+        const textarea = form.querySelector('textarea[name="solucao"]');
+        if (textarea) {
+          textarea.value = '';
+          setTimeout(() => textarea.focus(), 100);
+        }
+      }
+    });
+  }
 </script>
 <script src="{% static 'js/obras.js' %}"></script>
 {% endblock %}

@@ -1,14 +1,16 @@
 import json
 from django.db.models import Count, Q
+from django.core.paginator import Paginator
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .models import Obra, Categoria, Tarefa, Pendencia, AnexoObra, SolucaoPendencia
 from .forms import (
@@ -29,21 +31,32 @@ class ObraListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = Obra.objects.all().order_by("nome")
-        status = self.request.GET.get("status")
-        q = self.request.GET.get("q")
-        if status:
-            qs = qs.filter(status=status)
+        status = self.request.GET.get("status") or "ativa"
+        q = (self.request.GET.get("q") or "").strip()
+
         if q:
             qs = qs.filter(nome__icontains=q)
+        if status in {"ativa", "finalizada"}:
+            qs = qs.filter(status=status)
+        else:
+            status = "ativa"
+
+        self.status_filter = status
+        self.search_query = q
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        status_counts = Obra.objects.values("status").annotate(total=Count("id"))
-        counts = {item["status"]: item["total"] for item in status_counts}
+        base_qs = Obra.objects.all()
+        if self.search_query:
+            base_qs = base_qs.filter(nome__icontains=self.search_query)
+        status_counts = base_qs.values("status").annotate(total=Count("id"))
+        counts = {"ativa": 0, "finalizada": 0}
+        counts.update({item["status"]: item["total"] for item in status_counts})
+
         context["counts"] = counts
-        context["status_filter"] = self.request.GET.get("status", "")
-        context["search_query"] = self.request.GET.get("q", "")
+        context["status_filter"] = getattr(self, "status_filter", "ativa")
+        context["search_query"] = getattr(self, "search_query", "")
         # Percentual por obra
         perc_map = {}
         for obra in context["obras"]:
@@ -276,6 +289,7 @@ class PendenciaCreateView(RoleRequiredMixin, CreateView):
         return reverse_lazy("obras:detalhe_obra", kwargs={"pk": self.kwargs['obra_id']})
 
 
+
 class ObraDetailView(LoginRequiredMixin, DetailView):
     model = Obra
     template_name = "obras/obra_detail.html"
@@ -289,19 +303,39 @@ class ObraDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         obra = self.object
 
-        # As categorias já vêm com as tarefas pré-carregadas devido ao get_queryset
+        # As categorias ja vem com as tarefas pre-carregadas devido ao get_queryset
         categorias = obra.categorias.all()
 
-        stats = Tarefa.objects.filter(categoria__obra=obra).aggregate(
-            total_tarefas=Count('id'),
-            concluidas=Count('id', filter=Q(status='concluida')),
-            atrasadas=Count('id', filter=Q(status='bloqueada')),
+        pend_status = self.request.GET.get("pend_status") or "aberta"
+        pendencias_qs = (
+            obra.pendencias.select_related("tarefa", "categoria", "responsavel")
+            .prefetch_related("solucoes__usuario")
+            .order_by("-data_abertura")
         )
-        total_tarefas = stats.get('total_tarefas', 0)
-        concluidas = stats.get('concluidas', 0)
-        atrasadas = stats.get('atrasadas', 0)
+        pend_counts_qs = pendencias_qs.values("status").annotate(total=Count("id"))
+        pend_counts = {"aberta": 0, "andamento": 0, "resolvida": 0}
+        pend_counts.update({item["status"]: item["total"] for item in pend_counts_qs})
+        if pend_status not in pend_counts:
+            pend_status = "aberta"
+        pendencias = pendencias_qs.filter(status=pend_status)
+
+        stats = Tarefa.objects.filter(categoria__obra=obra).aggregate(
+            total_tarefas=Count("id"),
+            concluidas=Count("id", filter=Q(status="concluida")),
+            atrasadas=Count("id", filter=Q(status="bloqueada")),
+        )
+        total_tarefas = stats.get("total_tarefas", 0)
+        concluidas = stats.get("concluidas", 0)
+        atrasadas = stats.get("atrasadas", 0)
 
         percentual_concluido = (concluidas / total_tarefas) * 100 if total_tarefas > 0 else 0
+
+        inspecoes_qs = obra.inspecoes.select_related("usuario", "categoria", "tarefa").order_by(
+            "-data_inspecao", "-id"
+        )
+        insp_paginator = Paginator(inspecoes_qs, 10)
+        insp_page_number = self.request.GET.get("insp_page")
+        inspecoes_page = insp_paginator.get_page(insp_page_number)
 
         context["categorias"] = categorias
         context["percentual_concluido"] = round(percentual_concluido, 1)
@@ -310,10 +344,16 @@ class ObraDetailView(LoginRequiredMixin, DetailView):
             "concluidas": concluidas,
             "atrasadas": atrasadas,
         }
-        context["inspecoes_recentes"] = obra.inspecoes.select_related("usuario", "categoria", "tarefa").order_by("-data_inspecao", "-id")[:5]
+        context["pendencias"] = pendencias
+        context["pendencias_counts"] = pend_counts
+        context["pendencias_status"] = pend_status
+        context["inspecoes_page"] = inspecoes_page
+        context["inspecoes_total"] = inspecoes_page.paginator.count
+        context["pendencias_redirect"] = self.request.get_full_path()
         context["anexo_form"] = AnexoObraForm()
         context["anexos"] = obra.anexos.select_related("categoria", "enviado_por")
         return context
+
 
 
 class AnexoObraCreateView(RoleRequiredMixin, CreateView):
@@ -395,6 +435,7 @@ class PendenciaDetailView(LoginRequiredMixin, DetailView):
         )
 
 
+
 class PendenciaUpdateStatusView(RoleRequiredMixin, View):
     allowed_roles = ["admin", "avaliador", "gerente", "engenheiro", "fiscal"]
 
@@ -402,15 +443,20 @@ class PendenciaUpdateStatusView(RoleRequiredMixin, View):
         pendencia = get_object_or_404(Pendencia, pk=pk)
         novo_status = request.POST.get("novo_status")
         solucao_texto = request.POST.get("solucao", "").strip()
+        next_url = request.POST.get("next")
+        redirect_url = reverse("obras:detalhe_pendencia", kwargs={"pk": pendencia.pk})
+
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            redirect_url = next_url
 
         if novo_status not in ["andamento", "resolvida"]:
-            messages.error(request, "Status inválido para atualização.")
-            return redirect("obras:detalhe_pendencia", pk=pendencia.pk)
+            messages.error(request, "Status invalido para atualizacao.")
+            return redirect(redirect_url)
 
         if novo_status == "resolvida":
             if not solucao_texto:
-                messages.error(request, "Informe a solução para marcar como resolvida.")
-                return redirect("obras:detalhe_pendencia", pk=pendencia.pk)
+                messages.error(request, "Informe a solucao para marcar como resolvida.")
+                return redirect(redirect_url)
             pendencia.status = "resolvida"
             pendencia.save(update_fields=["status", "data_fechamento", "atualizado_em"])
             SolucaoPendencia.objects.create(
@@ -418,13 +464,13 @@ class PendenciaUpdateStatusView(RoleRequiredMixin, View):
                 usuario=request.user,
                 descricao=solucao_texto,
             )
-            messages.success(request, "Pendência marcada como resolvida.")
+            messages.success(request, "Pendencia marcada como resolvida.")
         else:
             if pendencia.status != "andamento":
                 pendencia.status = "andamento"
                 pendencia.save(update_fields=["status", "data_fechamento", "atualizado_em"])
-                messages.success(request, "Pendência marcada como em andamento.")
+                messages.success(request, "Pendencia marcada como em andamento.")
             else:
-                messages.info(request, "Pendência já está em andamento.")
+                messages.info(request, "Pendencia ja esta em andamento.")
 
-        return redirect("obras:detalhe_pendencia", pk=pendencia.pk)
+        return redirect(redirect_url)

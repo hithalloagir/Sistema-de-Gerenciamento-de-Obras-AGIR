@@ -13,7 +13,6 @@
   </a>
 </div>
 
-{% if obras %}
 <div class="card mb-4">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
@@ -22,11 +21,16 @@
         <small class="text-muted">Percentual concluído vs dias (cada linha é uma obra)</small>
       </div>
     </div>
-    <canvas id="obrasChart" height="80"></canvas>
+    <div class="position-relative">
+      <canvas id="obrasChart" height="80" class="w-100"></canvas>
+      <div id="obrasChartPlaceholder" class="position-absolute top-0 bottom-0 start-0 end-0 d-flex flex-column align-items-center justify-content-center text-center text-muted p-4 bg-white border border-light rounded d-none" role="status" aria-live="polite">
+        <i class="bi bi-info-circle fs-1 d-block mb-2"></i>
+        <p class="mb-0">Nenhum dado disponível para exibir o gráfico.</p>
+      </div>
+    </div>
     {{ chart_lines|json_script:"obras-data" }}
   </div>
 </div>
-{% endif %}
 
 {% if obras %}
 <div class="table-responsive">
@@ -96,16 +100,49 @@
 <script>
   (function() {
     const dataEl = document.getElementById('obras-data');
-    if (!dataEl) return;
-    const obras = JSON.parse(dataEl.textContent);
-    if (!obras.length) return;
+    const canvasEl = document.getElementById('obrasChart');
+    const placeholderEl = document.getElementById('obrasChartPlaceholder');
+    const defaultMessage = "Nenhum dado disponível para exibir o gráfico.";
+
+    const toggleView = (showChart, message) => {
+      if (!canvasEl || !placeholderEl) return;
+      if (showChart) {
+        placeholderEl.classList.add('d-none');
+        canvasEl.classList.remove('d-none');
+        return;
+      }
+      const textEl = placeholderEl.querySelector('p');
+      if (textEl) {
+        textEl.textContent = message || defaultMessage;
+      }
+      placeholderEl.classList.remove('d-none');
+      canvasEl.classList.add('d-none');
+    };
+
+    if (!dataEl || !canvasEl) {
+      toggleView(false, defaultMessage);
+      return;
+    }
+
+    const obras = JSON.parse(dataEl.textContent || '[]');
+    if (!obras.length) {
+      toggleView(false, defaultMessage);
+      return;
+    }
 
     const palette = ['#0d6efd', '#198754', '#fd7e14', '#6610f2', '#dc3545', '#0dcaf0'];
     const datasets = obras.map((o, idx) => {
+      const pontos = (o.pontos || []).map(pt => ({
+        x: Number(pt.x),
+        y: Number(pt.y),
+      })).filter(pt => !Number.isNaN(pt.x) && !Number.isNaN(pt.y));
+      if (!pontos.length) {
+        return null;
+      }
       const color = palette[idx % palette.length];
       return {
         label: o.nome,
-        data: o.pontos,
+        data: pontos,
         borderColor: color,
         backgroundColor: color + '33',
         fill: false,
@@ -113,9 +150,15 @@
         pointRadius: 4,
         pointBackgroundColor: color,
       };
-    });
+    }).filter(Boolean);
 
-    const ctx = document.getElementById('obrasChart').getContext('2d');
+    if (!datasets.length) {
+      toggleView(false, defaultMessage);
+      return;
+    }
+
+    toggleView(true);
+    const ctx = canvasEl.getContext('2d');
     new Chart(ctx, {
       type: 'line',
       data: { datasets },
