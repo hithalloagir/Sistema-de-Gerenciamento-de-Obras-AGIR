@@ -19,27 +19,6 @@ Obra concluída ela pode aparecer no visão geral, só para ter uma base de quan
 Não pode mais editar, Adicionar pendencia, registar inspeção, não pode mais cadastrar categoria e tarefa nem anexo, só visualizar 
 
 
-Futuro
-Evolução do sistema
-- Inspeção das unidades
-
-Para ajustar (hoje)
-
-- Retirar o Cadastro de "Custos" ()
-- Mudar as roles para níveis ()
-- Na tela inicial 
-	- Ter Progresso Real da obra e Progresso Esperado ()
-- Ajustar as permissões dos níveis ()
-- Criação de usuário nível 1 para o nível 2
-- Ajustar o gráfico de visão geral ()
-- Ajustar toda a tela de visão geral ()
-- Ser obrigatório clicar em capturar localização para salvar inspeção ()
-- O backlog de pendencias vai ser baseado no nível do usuário, o ADM vê tudo e os outros níveis só vê os da sua obra ()
-- Deixar todo o projeto profissional, no quesito estrutura e código () 
-
-Para ajustar na terça
-- Subir o site gratuitamente e fazer testes ()
-
 
 - Relacionado aos usuários
 	- Administrador (Acesso a tudo, criação de tudo, visualização de tudo que tem no sistema)
@@ -55,3 +34,26 @@ Para ajustar na terça
 - Relacionado a pendencias
 	- É possível colocar imagem ao criar uma
 	- Na hora de resolver pendencia poder colocar uma imagem da coisa resolvida
+
+Para ajustar (Terça)
+
+- Retirar o Cadastro de "Custos" (x)
+- Mudar as roles para níveis (x)
+- Ajustar as permissões dos níveis (x)
+- Criação de usuário nível 1 para o nível 2 ()
+- Ajustar toda a tela de visão geral (x)
+- Ser obrigatório clicar em capturar localização para salvar inspeção (x)
+- O backlog de pendencias vai ser baseado no nível do usuário, o ADM vê tudo e os outros níveis só vê os da sua obra (x)
+
+
+Para ajustar na Quarta
+- Fazer testes ()
+- Colocar em Postgres ()
+- Subir o site gratuitamente e fazer testes ()
+- Na tela inicial 
+	- Ter Progresso Real da obra e Progresso Esperado ()
+- Deixar todo o projeto profissional, no quesito estrutura e código () 
+- Ajustar o gráfico de visão geral ()
+- Fazer o Crud de criação de usuario dando permissão para o nivel 2 criar um nivel 1 e alocar o mesmo em uma obra ()
+- Fazer o ajuste, onde um usuario pode estar em várias obras ()
+
