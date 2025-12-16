@@ -12,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.core.exceptions import ValidationError
 
 from .models import Obra, Categoria, Tarefa, Pendencia, AnexoObra, SolucaoPendencia
 from .forms import (
@@ -747,8 +748,17 @@ class PendenciaUpdateStatusView(RoleRequiredMixin, View):
             if not solucao_texto:
                 messages.error(request, "Informe a solucao para marcar como resolvida.")
                 return redirect(redirect_url)
+            imagem_resolucao = request.FILES.get("imagem_resolucao")
             pendencia.status = "resolvida"
-            pendencia.save(update_fields=["status", "data_fechamento", "atualizado_em"])
+            if imagem_resolucao:
+                pendencia.imagem_resolucao = imagem_resolucao
+            pendencia.data_fechamento = timezone.now()
+            try:
+                pendencia.full_clean()
+            except ValidationError as exc:
+                messages.error(request, " ".join(exc.messages))
+                return redirect(redirect_url)
+            pendencia.save()
             SolucaoPendencia.objects.create(
                 pendencia=pendencia,
                 usuario=request.user,

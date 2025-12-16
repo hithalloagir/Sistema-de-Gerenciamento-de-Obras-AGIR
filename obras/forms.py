@@ -72,9 +72,19 @@ class TarefaForm(forms.ModelForm):
 class PendenciaForm(forms.ModelForm):
     class Meta:
         model = Pendencia
-        fields = ["tarefa", "descricao", "prioridade", "responsavel", "data_limite"]
+        fields = [
+            "tarefa",
+            "descricao",
+            "prioridade",
+            "responsavel",
+            "data_limite",
+            "imagem_problema",
+        ]
         widgets = {
             "data_limite": forms.DateInput(attrs={"type": "date"}),
+            "imagem_problema": forms.ClearableFileInput(
+                attrs={"accept": "image/jpeg,image/png,image/webp"}
+            ),
         }
 
     def __init__(self, *args, **kwargs):

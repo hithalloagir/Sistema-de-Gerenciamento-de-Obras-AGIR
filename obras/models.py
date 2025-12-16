@@ -1,8 +1,8 @@
-from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator
+from django.db import models
 from django.db.models import Avg
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 
 
@@ -24,6 +24,19 @@ class Obra(models.Model):
 
     def __str__(self):
         return self.nome
+
+
+def validate_image_file(image):
+    if not image:
+        return
+
+    max_size = 5 * 1024 * 1024  # 5MB
+    content_type = getattr(image, "content_type", "")
+    allowed_types = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+    if content_type and content_type not in allowed_types:
+        raise ValidationError("Envie arquivos JPG, PNG ou WEBP.")
+    if image.size > max_size:
+        raise ValidationError("O tamanho da imagem não pode ultrapassar 5MB.")
 
 
 class Categoria(models.Model):
@@ -152,12 +165,30 @@ class Pendencia(models.Model):
     prioridade = models.CharField(
         max_length=10, choices=PRIORIDADE_CHOICES, default="media"
     )
+    imagem_problema = models.ImageField(
+        upload_to="pendencias/problemas/",
+        null=True,
+        blank=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),
+            validate_image_file,
+        ],
+    )
     responsavel = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="pendencias_responsavel",
+    )
+    imagem_resolucao = models.ImageField(
+        upload_to="pendencias/resolucoes/",
+        null=True,
+        blank=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),
+            validate_image_file,
+        ],
     )
 
     status = models.CharField(

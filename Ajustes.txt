@@ -50,3 +50,8 @@ Para ajustar na terça
 		- Pode adicionar anexos
 		- Pode mover a porcentagem da tarefa criada 
 		- Se colocar como concluída, ele não pode editar mais a tarefa, caso tenha feito errado, vai ser necessário chamar o nível 2, onde o mesmo vai poder editar mesma
+
+
+- Relacionado a pendencias
+	- É possível colocar imagem ao criar uma
+	- Na hora de resolver pendencia poder colocar uma imagem da coisa resolvida
