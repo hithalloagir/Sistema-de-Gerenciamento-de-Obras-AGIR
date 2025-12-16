@@ -19,8 +19,6 @@ class Obra(models.Model):
     data_fim_prevista = models.DateField(null=True, blank=True)
     capa = models.ImageField(upload_to="obras/capas/", null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ativa")
-    custo_previsto = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    custo_real = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 

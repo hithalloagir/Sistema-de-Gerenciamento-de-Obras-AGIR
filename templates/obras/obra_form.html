@@ -20,6 +20,15 @@
         {% csrf_token %}
         <h5 class="mb-3">Dados da Obra</h5>
         {{ form|crispy }}
+        {% if can_duplicate_last_obra and last_obra_for_duplicate %}
+        <div class="alert alert-info small">
+          <strong>Duplicar ultima obra:</strong> ao marcar a opcao acima usaremos "{{ last_obra_for_duplicate.nome }}" como modelo. Apenas categorias e tarefas serao copiadas; inspecoes, pendencias, anexos e datas da obra nao sao reaproveitados. O nome sera ajustado automaticamente e o status ficara como Ativa.
+        </div>
+        {% elif creator_user_level == 'nivel2' %}
+        <div class="alert alert-warning small">
+          Usuarios nivel 2 precisam selecionar a opcao de duplicar ultima obra para concluir o cadastro.
+        </div>
+        {% endif %}
 
         {% if not object %}
           <hr class="my-4">

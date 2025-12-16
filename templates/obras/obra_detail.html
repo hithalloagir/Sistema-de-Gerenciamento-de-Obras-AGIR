@@ -3,43 +3,65 @@
 {% block title %}{{ obra.nome }}{% endblock %}
 
 {% block content %}
+{% with obra_status=obra.status %}
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <h1 class="h3 mb-0">{{ obra.nome }}</h1>
     <div class="btn-group">
-      <a href="{% url 'obras:editar_obra' obra.id %}" class="btn btn-outline-secondary">
-        <i class="bi bi-pencil"></i> Editar
+      <a href="{% url 'obras:relatorio_obra' obra.id %}" target="_blank" class="btn btn-outline-dark">
+        <i class="bi bi-printer"></i> Relatório
       </a>
-      {% comment %} <a href="{% url 'obras:nova_pendencia' obra.id %}" class="btn btn-outline-danger">
-        <i class="bi bi-exclamation-triangle"></i> Nova Pendência
-      </a>
-      <a href="{% url 'inspecoes:nova_inspecao' obra.id %}" class="btn btn-success">
-        <i class="bi bi-plus-circle"></i> Registrar Inspeção
-      </a>
-      <a href="{% url 'inspecoes:lista_obra' obra.id %}" class="btn btn-outline-primary">
-        <i class="bi bi-map"></i> Ver no Mapa
-      </a> {% endcomment %}
-      {% if obra.status != 'finalizada' %}
-      <form method="post" action="{% url 'obras:concluir_obra' obra.id %}" onsubmit="return confirm('Marcar obra como concluída?');">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-outline-success">
-          <i class="bi bi-check2-circle"></i> Concluir Obra
-        </button>
-      </form>
+      {% if obra_status != 'finalizada' %}
+        {% if can_manage_obra %}
+        <a href="{% url 'obras:editar_obra' obra.id %}" class="btn btn-outline-secondary">
+          <i class="bi bi-pencil"></i> Editar
+        </a>
+        {% endif %}
+        {% comment %} <a href="{% url 'obras:nova_pendencia' obra.id %}" class="btn btn-outline-danger">
+          <i class="bi bi-exclamation-triangle"></i> Nova Pend??ncia
+        </a>
+        <a href="{% url 'inspecoes:nova_inspecao' obra.id %}" class="btn btn-success">
+          <i class="bi bi-plus-circle"></i> Registrar Inspe????o
+        </a>
+        <a href="{% url 'inspecoes:lista_obra' obra.id %}" class="btn btn-outline-primary">
+          <i class="bi bi-map"></i> Ver no Mapa
+        </a> {% endcomment %}
+        {% if can_manage_obra %}
+        <form method="post" action="{% url 'obras:concluir_obra' obra.id %}" onsubmit="return confirm('Marcar obra como conclu??da?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-success">
+            <i class="bi bi-check2-circle"></i> Concluir Obra
+          </button>
+        </form>
+        {% endif %}
+      {% else %}
+        <span class="badge bg-success d-flex align-items-center gap-1">
+          <i class="bi bi-check2-circle"></i> Concluída
+        </span>
       {% endif %}
     </div>
   </div>
   <div class="card-body">
+    {% if obra_status == 'finalizada' %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" role="status">
+      <i class="bi bi-lock-fill"></i>
+      <span>Esta obra esta concluida e em modo somente leitura.</span>
+    </div>
+    {% endif %}
+    {% if user_level == 'nivel1' and obra_status != 'finalizada' %}
+    <div class="alert alert-info d-flex align-items-center gap-2 mb-4" role="status">
+      <i class="bi bi-info-circle"></i>
+      <span>Ao concluir uma tarefa, somente um usuário Nível 2 pode reabri-la para ajustes.</span>
+    </div>
+    {% endif %}
     <div class="row g-3">
       <div class="col-md-6">
         <p><strong>Status:</strong> {{ obra.get_status_display }}</p>
-        <p><strong>Cliente:</strong> {{ obra.cliente }}</p>
-        <p><strong>Endereço:</strong> {{ obra.endereco }}</p>
+        <p><strong>Cliente:</strong> {{ obra.cliente|default:"—" }}</p>
+        <p><strong>Endereço:</strong> {{ obra.endereco|default:"—" }}</p>
       </div>
       <div class="col-md-6">
         <p><strong>Prazo final:</strong> {{ obra.data_fim_prevista|date:"d/m/Y" }}</p>
-        <p><strong>Custo previsto:</strong> {{ obra.custo_previsto|default:"—" }}</p>
-        <p><strong>Custo real:</strong> {{ obra.custo_real|default:"—" }}</p>
         <div>
           <strong>Conclusão Geral:</strong>
           <div class="progress mt-1" style="height: 25px;">
@@ -96,8 +118,15 @@
       <p class="text-muted mb-1">Pendências da obra</p>
       <h3 class="h5 mb-0">Pendências</h3>
     </div>
-    <a class="btn btn-sm btn-outline-danger" href="{% url 'obras:nova_pendencia' obra.id %}"><i class="bi bi-plus-circle"></i> Nova pendência</a>
-  </div>
+    {% if obra_status != 'finalizada' and can_manage_pendencias %}
+      <a class="btn btn-sm btn-outline-danger" href="{% url 'obras:nova_pendencia' obra.id %}"><i class="bi bi-plus-circle"></i> Nova pendência</a>
+    {% elif obra_status != 'finalizada' %}
+      <span class="badge bg-light text-muted">Permissão restrita</span>
+    {% else %}
+      <span class="badge bg-light text-muted">Modo somente leitura</span>
+    {% endif %}
+
+ </div>
   <div class="card-body">
     <ul class="nav nav-pills mb-3">
       <li class="nav-item">
@@ -150,7 +179,7 @@
                 <td class="text-end">
                   <div class="d-flex justify-content-end flex-wrap gap-2">
                     <a class="btn btn-sm btn-outline-secondary" href="{% url 'obras:detalhe_pendencia' pendencia.id %}">Ver detalhes</a>
-                    {% if pendencia.status != 'resolvida' %}
+                    {% if pendencia.status != 'resolvida' and obra_status != 'finalizada' %}
                       {% if pendencia.status != 'andamento' %}
                         <form method="post" action="{% url 'obras:atualizar_pendencia' pendencia.id %}" class="d-inline">
                           {% csrf_token %}
@@ -162,8 +191,10 @@
                       <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#resolverPendenciaModal" data-update-url="{% url 'obras:atualizar_pendencia' pendencia.id %}" data-descricao="{{ pendencia.descricao|escapejs }}">
                         Resolver
                       </button>
-                    {% else %}
+                    {% elif pendencia.status == 'resolvida' %}
                       <span class="text-success small d-flex align-items-center"><i class="bi bi-check-circle me-1"></i> Resolvida</span>
+                    {% elif obra_status == 'finalizada' %}
+                      <span class="text-muted small d-flex align-items-center"><i class="bi bi-lock me-1"></i> Somente leitura</span>
                     {% endif %}
                   </div>
                 </td>
@@ -185,7 +216,9 @@
       <h3 class="h5 mb-0">Inspeções ({{ inspecoes_total }})</h3>
     </div>
     <div class="d-flex gap-2">
-      <a class="btn btn-sm btn-success" href="{% url 'inspecoes:nova_inspecao' obra.id %}"><i class="bi bi-clipboard-plus"></i> Nova inspeção</a>
+      {% if obra_status != 'finalizada' and can_add_inspecao %}
+        <a class="btn btn-sm btn-success" href="{% url 'inspecoes:nova_inspecao' obra.id %}"><i class="bi bi-clipboard-plus"></i> Nova inspeção</a>
+      {% endif %}
       <a class="btn btn-sm btn-outline-primary" href="{% url 'inspecoes:lista_obra' obra.id %}"><i class="bi bi-geo-alt"></i> Ver no mapa</a>
     </div>
   </div>
@@ -252,6 +285,7 @@
 </div>
 
 
+{% if obra_status != 'finalizada' %}
 <div class="modal fade" id="resolverPendenciaModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form method="post" class="modal-content" id="resolverPendenciaForm">
@@ -277,18 +311,23 @@
     </form>
   </div>
 </div>
+{% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h3 class="mb-0">Categorias e Tarefas</h3>
-  <a href="{% url 'obras:nova_categoria' obra.id %}" class="btn btn-sm btn-primary">
-    <i class="bi bi-plus-circle"></i> Adicionar Categoria
-  </a>
+  {% if obra_status != 'finalizada' and can_manage_structure %}
+    <a href="{% url 'obras:nova_categoria' obra.id %}" class="btn btn-sm btn-primary">
+      <i class="bi bi-plus-circle"></i> Adicionar Categoria
+    </a>
+  {% endif %}
 </div>
 
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span>Anexos</span>
-    <a class="btn btn-sm btn-outline-secondary" href="{% url 'obras:novo_anexo' obra.id %}"><i class="bi bi-paperclip"></i> Novo anexo</a>
+    {% if obra_status != 'finalizada' and can_add_anexo %}
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'obras:novo_anexo' obra.id %}"><i class="bi bi-paperclip"></i> Novo anexo</a>
+    {% endif %}
   </div>
   <div class="card-body">
     {% if anexos %}
@@ -333,15 +372,28 @@
           {% if categoria.tarefas.all %}
             <ul class="list-group list-group-flush">
               {% for tarefa in categoria.tarefas.all|dictsort:"ordem" %}
-                <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
-                  <div class="me-3">
-                    <a href="{% url 'obras:editar_tarefa' tarefa.id %}" class="btn btn-sm btn-outline-secondary me-2 py-0 px-1">
-                      <i class="bi bi-pencil"></i>
-                    </a>
-                    <strong>{{ tarefa.nome }}</strong> -
-                    <span class="badge bg-info text-dark task-progress" data-task-id="{{ tarefa.id }}" data-category-id="{{ categoria.id }}" style="cursor: pointer;" title="Clique para editar">
-                      {{ tarefa.percentual_concluido }}%</span>
-                  </div>
+              <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                <div class="me-3">
+                  {% if obra_status != 'finalizada' and can_manage_structure %}
+                  <a href="{% url 'obras:editar_tarefa' tarefa.id %}" class="btn btn-sm btn-outline-secondary me-2 py-0 px-1">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  {% endif %}
+                  <strong>{{ tarefa.nome }}</strong> -
+                  {% if obra_status != 'finalizada' and can_update_task_progress %}
+                  <span class="badge bg-info text-dark task-progress"
+                        data-task-id="{{ tarefa.id }}"
+                        data-category-id="{{ categoria.id }}"
+                        data-can-edit="true"
+                        data-lock-level1="{% if tarefa.status == 'concluida' %}true{% else %}false{% endif %}"
+                        data-lock-message="{{ nivel1_lock_message }}"
+                        style="cursor: pointer;" title="Clique para editar">
+                    {{ tarefa.percentual_concluido }}%</span>
+                  {% else %}
+                  <span class="badge bg-secondary text-white">
+                    {{ tarefa.percentual_concluido }}%</span>
+                  {% endif %}
+                </div>
                   <div class="d-flex align-items-center" id="task-status-wrapper-{{ tarefa.id }}">
                     {% if tarefa.status == 'concluida' %}
                       <span class="badge bg-success me-3">Concluída</span>
@@ -366,11 +418,13 @@
           {% else %}
             <p class="p-3 mb-0 text-muted">Nenhuma tarefa cadastrada nesta categoria.</p>
           {% endif %}
+          {% if obra_status != 'finalizada' and can_manage_structure %}
           <div class="card-footer bg-light p-2 text-end">
             <a href="{% url 'obras:nova_tarefa' categoria.id %}" class="btn btn-sm btn-outline-success">
               <i class="bi bi-plus"></i> Adicionar Tarefa
             </a>
           </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -378,9 +432,11 @@
     <div class="alert alert-info">Esta obra ainda não possui categorias cadastradas.</div>
   {% endfor %}
 </div>
+{% endwith %}
 {% endblock %}
 
 {% block extra_js %}
+{% if obra.status != 'finalizada' %}
 <script>
   window.updateTaskProgressUrl = "{% url 'obras:update_task_progress' %}";
   const resolverPendenciaModal = document.getElementById('resolverPendenciaModal');
@@ -408,4 +464,5 @@
   }
 </script>
 <script src="{% static 'js/obras.js' %}"></script>
+{% endif %}
 {% endblock %}

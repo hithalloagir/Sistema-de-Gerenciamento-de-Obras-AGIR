@@ -1,22 +1,38 @@
+from decimal import Decimal, InvalidOperation
+
 from django.urls import reverse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import CreateView, ListView, DetailView
+from django.contrib import messages
 
 from .models import Inspecao, InspecaoFoto
 from .forms import InspecaoForm
 from obras.models import Obra
 from accounts.mixins import RoleRequiredMixin
+from accounts.models import UserProfile
+from accounts.utils import filter_queryset_by_user_obras, user_has_obra_access
+from obras.constants import NO_OBRA_PERMISSION_MESSAGE, READ_ONLY_MESSAGE
 
 
 class InspecaoCreateView(RoleRequiredMixin, CreateView):
     model = Inspecao
     form_class = InspecaoForm
     template_name = "inspecoes/inspecao_form.html"
-    allowed_roles = ["admin", "avaliador", "gerente", "engenheiro", "fiscal"]
+    allowed_roles = [
+        UserProfile.Level.ADMIN,
+        UserProfile.Level.NIVEL2,
+        UserProfile.Level.NIVEL1,
+    ]
 
     def dispatch(self, request, *args, **kwargs):
         self.obra = get_object_or_404(Obra, pk=kwargs["obra_id"])
+        denied = self.ensure_obra_access(self.obra)
+        if denied:
+            return denied
+        if self.obra.status == "finalizada":
+            messages.error(request, READ_ONLY_MESSAGE)
+            return redirect("obras:detalhe_obra", pk=self.obra.pk)
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
@@ -37,8 +53,24 @@ class InspecaoCreateView(RoleRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.usuario = self.request.user
         form.instance.obra = self.obra
-        form.instance.latitude = self.request.POST.get("latitude") or None
-        form.instance.longitude = self.request.POST.get("longitude") or None
+        latitude = self.request.POST.get("latitude")
+        longitude = self.request.POST.get("longitude")
+
+        if not latitude or not longitude:
+            form.add_error(
+                None, "Capture a localizaÇõÇœo antes de salvar a inspeÇõÇœo."
+            )
+            return self.form_invalid(form)
+
+        try:
+            form.instance.latitude = Decimal(latitude)
+            form.instance.longitude = Decimal(longitude)
+        except (InvalidOperation, TypeError, ValueError):
+            form.add_error(
+                None, "NÇœo foi possÇðvel ler a localizaÇõÇœo informada. Tente novamente."
+            )
+            return self.form_invalid(form)
+
         response = super().form_valid(form)
         fotos = self.request.FILES.getlist("fotos")
         for foto in fotos:
@@ -56,6 +88,9 @@ class InspecaoObraListView(LoginRequiredMixin, ListView):
 
     def dispatch(self, request, *args, **kwargs):
         self.obra = get_object_or_404(Obra, pk=kwargs["obra_id"])
+        if not user_has_obra_access(request.user, self.obra):
+            messages.error(request, NO_OBRA_PERMISSION_MESSAGE)
+            return redirect("obras:listar_obras")
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -92,9 +127,10 @@ class InspecaoDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "inspecao"
 
     def get_queryset(self):
-        return (
+        qs = (
             super()
             .get_queryset()
             .select_related("obra", "categoria", "tarefa", "usuario")
             .prefetch_related("itens__ponto", "fotos")
         )
+        return filter_queryset_by_user_obras(qs, self.request.user)

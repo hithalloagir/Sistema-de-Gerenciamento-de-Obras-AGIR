@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Relatório - {{ obra.nome }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  body {
+    background-color: #fff;
+  }
+  .report-wrapper {
+    background: #fff;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+  }
+  .report-section + .report-section {
+    margin-top: 2rem;
+  }
+  .report-table th,
+  .report-table td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: top;
+  }
+  @media print {
+    body {
+      background: #fff;
+    }
+    nav,
+    .navbar,
+    .no-print,
+    .alert {
+      display: none !important;
+    }
+    main.container-fluid {
+      padding: 0;
+    }
+    .report-wrapper {
+      box-shadow: none;
+      border: none;
+      padding: 0;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-wrapper">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 border-bottom pb-3 mb-4">
+    <div>
+      <p class="text-uppercase text-muted small mb-1">Relatório resumido</p>
+      <h1 class="h3 mb-1">{{ obra.nome }}</h1>
+      <p class="mb-1 text-muted">{{ obra.cliente|default:"Cliente não informado" }}</p>
+      <p class="mb-0 text-muted">Atualizado em {{ generated_at|date:"d/m/Y H:i" }}</p>
+    </div>
+    <div class="d-flex gap-2 no-print">
+      <a href="{% url 'obras:detalhe_obra' obra.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+      </a>
+      <button class="btn btn-primary" onclick="window.print()">
+        <i class="bi bi-printer"></i> Imprimir
+      </button>
+    </div>
+  </div>
+
+  <section class="report-section">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <div class="border rounded p-3 h-100">
+          <p class="text-muted mb-1">Status geral</p>
+          <h4 class="mb-0">{{ obra.get_status_display }}</h4>
+          <small class="text-muted">Início: {{ obra.data_inicio|date:"d/m/Y"|default:"—" }}</small>
+          <div class="text-muted">Previsto: {{ obra.data_fim_prevista|date:"d/m/Y"|default:"—" }}</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="border rounded p-3 h-100">
+          <p class="text-muted mb-1">Progresso real</p>
+          <h4 class="mb-0">{{ progresso_real }}%</h4>
+          <div class="progress mt-2" style="height:8px;">
+            <div class="progress-bar bg-success" style="width: {{ progresso_real }}%;" role="progressbar"></div>
+          </div>
+          <small class="text-muted d-block mt-1">{{ tarefas_concluidas }}/{{ total_tarefas }} tarefas concluídas</small>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="border rounded p-3 h-100">
+          <p class="text-muted mb-1">Progresso esperado</p>
+          {% if progresso_esperado is not None %}
+            <h4 class="mb-0">{{ progresso_esperado }}%</h4>
+            <div class="progress mt-2" style="height:8px;">
+              <div class="progress-bar bg-info" style="width: {{ progresso_esperado }}%;" role="progressbar"></div>
+            </div>
+            <small class="text-muted d-block mt-1">Com base em {{ obra.data_inicio|date:"d/m/Y"|default:"—" }} a {{ obra.data_fim_prevista|date:"d/m/Y"|default:"—" }}</small>
+          {% else %}
+            <h4 class="mb-0 text-muted">Não definido</h4>
+            <small class="text-muted">Defina datas de início e fim para calcular.</small>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="border rounded p-3 h-100">
+          <p class="text-muted mb-1">Pendências</p>
+          <h4 class="mb-0">{{ pendencias_total }}</h4>
+          <small class="text-muted d-block">Abertas: {{ pendencias_counts.aberta }}</small>
+          <small class="text-muted d-block">Em andamento: {{ pendencias_counts.andamento }}</small>
+          <small class="text-muted d-block">Resolvidas: {{ pendencias_counts.resolvida }}</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="report-section">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="h5 mb-0">Pendências por status</h2>
+        <small class="text-muted">Listagem das pendências abertas, em andamento e resolvidas</small>
+      </div>
+    </div>
+    {% if pendencias_total %}
+      <div class="row g-3">
+        {% for status, lista in pendencias_por_status.items %}
+        <div class="col-md-4">
+          <div class="border rounded p-3 h-100">
+            <h3 class="h6 text-uppercase text-muted mb-2">
+              {% if status == 'aberta' %}Abertas{% elif status == 'andamento' %}Em andamento{% else %}Resolvidas{% endif %}
+              <span class="badge bg-light text-dark ms-1">{{ lista|length }}</span>
+            </h3>
+            {% if lista %}
+              <ul class="list-unstyled mb-0 small">
+                {% for pendencia in lista %}
+                  <li class="mb-2">
+                    <strong>{{ pendencia.tarefa.nome }}</strong>
+                    <div>{{ pendencia.descricao }}</div>
+                    <div class="text-muted">
+                      {% if status == 'resolvida' %}
+                        Fechada em {{ pendencia.data_fechamento|date:"d/m/Y H:i"|default:"—" }}
+                      {% else %}
+                        Abertura {{ pendencia.data_abertura|date:"d/m/Y H:i" }}
+                      {% endif %}
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted mb-0 small">Nenhuma pendência neste status.</p>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">Não há pendências registradas para esta obra.</p>
+    {% endif %}
+  </section>
+
+  <section class="report-section">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="h5 mb-0">Inspeções</h2>
+        <small class="text-muted">Quantidade total e últimas execuções</small>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="border rounded p-3 h-100">
+          <p class="text-muted mb-1">Total registrado</p>
+          <h4 class="mb-0">{{ inspecoes_total }}</h4>
+          {% if ultima_inspecao %}
+            <small class="text-muted">Última em {{ ultima_inspecao.data_inspecao|date:"d/m/Y" }} às {{ ultima_inspecao.data_hora|date:"H:i" }}</small>
+          {% else %}
+            <small class="text-muted">Nenhuma inspeção cadastrada.</small>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="border rounded p-3 h-100">
+          {% if inspecoes_recentes %}
+            <table class="table table-sm mb-0 report-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Responsável</th>
+                  <th>Categoria / Tarefa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for insp in inspecoes_recentes %}
+                  <tr>
+                    <td>{{ insp.data_inspecao|date:"d/m/Y" }}<br><small class="text-muted">{{ insp.data_hora|date:"H:i" }}</small></td>
+                    <td>{{ insp.usuario.username }}</td>
+                    <td>
+                      <div>{{ insp.categoria|default_if_none:"Sem categoria" }}</div>
+                      <div class="text-muted">{{ insp.tarefa|default_if_none:"Sem tarefa" }}</div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="text-muted mb-0">Nenhuma inspeção para exibir.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="report-section">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="h5 mb-0">Categorias e tarefas</h2>
+        <small class="text-muted">Progresso detalhado por categoria</small>
+      </div>
+    </div>
+    {% if categorias %}
+      {% for categoria in categorias %}
+        <div class="border rounded mb-3">
+          <div class="p-3 border-bottom">
+            <div class="d-flex justify-content-between flex-wrap gap-2">
+              <div>
+                <h3 class="h6 mb-1">{{ categoria.nome }}</h3>
+                <small class="text-muted">{{ categoria.descricao|default:"Sem descrição" }}</small>
+              </div>
+              <div class="text-end">
+                <small class="text-muted d-block">Prazo: {{ categoria.prazo_final|date:"d/m/Y"|default:"—" }}</small>
+                <div class="progress" style="width: 220px; height: 10px;">
+                  <div class="progress-bar" style="width: {{ categoria.percentual_concluido }}%;"></div>
+                </div>
+                <small class="text-muted">{{ categoria.percentual_concluido }}% concluído</small>
+              </div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            {% if categoria.tarefas.all %}
+              <table class="table table-sm mb-0 report-table">
+                <thead>
+                  <tr>
+                    <th style="width: 35%;">Tarefa</th>
+                    <th style="width: 25%;">Prazo</th>
+                    <th style="width: 15%;">Status</th>
+                    <th style="width: 25%;">Progresso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for tarefa in categoria.tarefas.all|dictsort:"ordem" %}
+                    <tr>
+                      <td>
+                        <strong>{{ tarefa.nome }}</strong>
+                        <div class="text-muted small">{{ tarefa.descricao|default:"Sem descrição" }}</div>
+                      </td>
+                      <td>
+                        <small class="text-muted d-block">Início {{ tarefa.data_inicio_prevista|date:"d/m/Y"|default:"—" }}</small>
+                        <small class="text-muted d-block">Fim {{ tarefa.data_fim_prevista|date:"d/m/Y"|default:"—" }}</small>
+                      </td>
+                      <td>
+                        <span class="badge {% if tarefa.status == 'concluida' %}bg-success{% elif tarefa.status == 'andamento' %}bg-primary{% elif tarefa.status == 'bloqueada' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ tarefa.get_status_display }}</span>
+                      </td>
+                      <td>
+                        <div class="progress" style="height: 6px;">
+                          <div class="progress-bar" style="width: {{ tarefa.percentual_concluido }}%;"></div>
+                        </div>
+                        <small class="text-muted">{{ tarefa.percentual_concluido }}%</small>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <p class="text-muted mb-0 p-3">Nenhuma tarefa cadastrada.</p>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-muted mb-0">Nenhuma categoria cadastrada para esta obra.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

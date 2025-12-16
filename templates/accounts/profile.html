@@ -40,4 +40,27 @@
     </div>
   </div>
 </div>
+
+<div class="card" style="max-width: 720px;">
+  <div class="card-header">
+    <strong>Obras alocadas</strong>
+  </div>
+  <div class="card-body">
+    {% if alocacoes %}
+      <ul class="list-group list-group-flush">
+        {% for alocacao in alocacoes %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <a href="{% url 'obras:detalhe_obra' alocacao.obra.id %}" class="text-decoration-none">{{ alocacao.obra.nome }}</a>
+              <div class="small text-muted">{{ alocacao.obra.get_status_display }} • Alocado em {{ alocacao.criado_em|date:"d/m/Y" }}</div>
+            </div>
+            <span class="badge {% if alocacao.obra.status == 'finalizada' %}bg-success{% else %}bg-primary{% endif %}">{{ alocacao.obra.get_status_display }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mb-0 text-muted">Nenhuma obra alocada para o seu usuário.</p>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

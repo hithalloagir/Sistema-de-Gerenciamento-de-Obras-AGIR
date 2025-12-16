@@ -2,6 +2,7 @@
 {% block title %}Pendência {{ pendencia.id }}{% endblock %}
 
 {% block content %}
+{% with obra_status=pendencia.obra.status %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="{% url 'obras:listar_pendencias' %}">Pendências</a></li>
@@ -55,7 +56,7 @@
   </div>
   <div class="card-footer d-flex flex-wrap gap-2 justify-content-between">
     <div class="d-flex gap-2 flex-wrap">
-      {% if pendencia.status != 'resolvida' %}
+      {% if pendencia.status != 'resolvida' and obra_status != 'finalizada' %}
         <form method="post" action="{% url 'obras:atualizar_pendencia' pendencia.id %}" class="d-inline">
           {% csrf_token %}
           <input type="hidden" name="novo_status" value="andamento">
@@ -64,8 +65,10 @@
         <button class="btn btn-success btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#resolverForm" aria-expanded="false" aria-controls="resolverForm">
           Resolver pendência
         </button>
-      {% else %}
+      {% elif pendencia.status == 'resolvida' %}
         <span class="text-success small d-inline-flex align-items-center"><i class="bi bi-check-circle me-1"></i>Resolvida em {{ pendencia.data_fechamento|date:"d/m/Y H:i"|default:"—" }}</span>
+      {% elif obra_status == 'finalizada' %}
+        <span class="text-muted small d-inline-flex align-items-center"><i class="bi bi-lock me-1"></i>Obra em modo leitura</span>
       {% endif %}
     </div>
     <div class="d-flex gap-2">
@@ -75,7 +78,7 @@
   </div>
 </div>
 
-{% if pendencia.status != 'resolvida' %}
+{% if pendencia.status != 'resolvida' and obra_status != 'finalizada' %}
 <div class="collapse mb-4" id="resolverForm">
   <div class="card border-success">
     <div class="card-header bg-success text-white">Resolver pendência</div>
@@ -122,9 +125,11 @@
     {% endif %}
   </div>
 </div>
+{% endwith %}
 {% endblock %}
 
 {% block extra_js %}
+{% if pendencia.status != 'resolvida' and pendencia.obra.status != 'finalizada' %}
 <script>
   const resolverFormEl = document.getElementById('resolverForm');
   if (resolverFormEl) {
@@ -134,4 +139,5 @@
     });
   }
 </script>
+{% endif %}
 {% endblock %}

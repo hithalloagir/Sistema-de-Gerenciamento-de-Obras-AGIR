@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function () {
-  // ObtÃ©m token CSRF dos cookies
   function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -16,15 +15,25 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   const csrftoken = getCookie('csrftoken');
+  const currentUserLevel = document.body?.dataset?.userLevel || '';
   const progressSpans = document.querySelectorAll('.task-progress');
 
   progressSpans.forEach(span => {
+    if (span.dataset.canEdit !== 'true') {
+      return;
+    }
     span.addEventListener('click', function () {
-      const currentProgress = this.textContent.replace('%', '');
       const taskId = this.dataset.taskId;
       const categoryId = this.dataset.categoryId;
+      const isLockedForLevel1 = this.dataset.lockLevel1 === 'true';
+      const lockMessage = this.dataset.lockMessage || 'Tarefa bloqueada. Solicite apoio de um usuário Nível 2.';
 
-      // Cria um input do tipo range (slider)
+      if (currentUserLevel === 'nivel1' && isLockedForLevel1) {
+        alert(lockMessage);
+        return;
+      }
+
+      const currentProgress = this.textContent.replace('%', '');
       const input = document.createElement('input');
       input.type = 'range';
       input.min = 0;
@@ -33,12 +42,10 @@ document.addEventListener('DOMContentLoaded', function () {
       input.classList.add('form-range');
       input.style.width = '120px';
 
-      // Substitui o span pelo input
       this.style.display = 'none';
       this.parentNode.insertBefore(input, this.nextSibling);
       input.focus();
 
-      // FunÃ§Ã£o para limpar o input e restaurar o span
       const cleanup = () => {
         if (input.parentNode) {
           input.parentNode.removeChild(input);
@@ -46,16 +53,13 @@ document.addEventListener('DOMContentLoaded', function () {
         span.style.display = 'inline-block';
       };
 
-      // Evento para quando o valor do slider for alterado
       const handleUpdate = function() {
         input.removeEventListener('change', handleUpdate);
         input.removeEventListener('blur', handleUpdate);
 
         const newProgress = input.value;
-
-        // Se for 100%, pede confirmaÃ§Ã£o
         if (newProgress == 100) {
-          if (!confirm("Confirma a finalizaÃ§Ã£o desta tarefa? A data de conclusÃ£o serÃ¡ registrada.")) {
+          if (!confirm('Confirma a finalização desta tarefa? A data de conclusão será registrada.')) {
             cleanup();
             return;
           }
@@ -72,9 +76,11 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(response => response.json())
         .then(data => {
           if (data.status === 'success') {
-            span.textContent = newProgress + '%';
+            span.textContent = `${newProgress}%`;
+            if (currentUserLevel === 'nivel1') {
+              span.dataset.lockLevel1 = data.task_completed ? 'true' : 'false';
+            }
 
-            // Atualiza a barra de progresso da categoria
             const categoryProgressDiv = document.querySelector(`.category-progress[data-category-id="${categoryId}"] .progress-bar`);
             if (categoryProgressDiv) {
               categoryProgressDiv.style.width = data.new_category_progress + '%';
@@ -82,7 +88,6 @@ document.addEventListener('DOMContentLoaded', function () {
               if (label) { label.textContent = data.new_category_progress + '%'; }
             }
 
-            // Atualiza o badge de status da tarefa
             const statusWrapper = document.getElementById(`task-status-wrapper-${taskId}`);
             if (statusWrapper) {
               const statusBadge = statusWrapper.querySelector('.badge');
@@ -101,10 +106,15 @@ document.addEventListener('DOMContentLoaded', function () {
               }
               const dateWrapper = document.getElementById(`task-date-wrapper-${taskId}`);
               if (dateWrapper && data.task_real_end_date) {
-                dateWrapper.innerHTML = `<strong>ConcluÃ­do em: ${data.task_real_end_date}</strong>`;
+                dateWrapper.innerHTML = `<strong>Concluído em: ${data.task_real_end_date}</strong>`;
               }
             }
+          } else if (data.message) {
+            alert(data.message);
           }
+        })
+        .catch(() => {
+          alert('Não foi possível atualizar a tarefa.');
         })
         .finally(() => {
           cleanup();

@@ -1,98 +1,156 @@
 {% extends "base.html" %}
-{% block title %}Visão Geral{% endblock %}
+{% block title %}Visao Geral{% endblock %}
+
+{% block extra_head %}
+<style>
+  .overview-chart {
+    height: 320px;
+  }
+
+  @media (max-width: 576px) {
+    .overview-chart {
+      height: 240px;
+    }
+  }
+
+  .overview-chart canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
-  <div>
-    <p class="text-primary fw-semibold mb-1">Visão Geral</p>
-    <h2 class="mb-1">Todas as obras</h2>
-    <p class="text-muted mb-0">Percentual concluído, pendências abertas, prazo final e dias restantes.</p>
-  </div>
-  <a href="{% url 'obras:nova_obra' %}" class="btn btn-outline-primary">
-    <i class="bi bi-plus-circle"></i> Nova obra
-  </a>
-</div>
-
-<div class="card mb-4">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-      <div>
-        <h5 class="mb-0">Progresso das obras</h5>
-        <small class="text-muted">Percentual concluído vs dias (cada linha é uma obra)</small>
+<div class="container-xxl px-2 px-md-3">
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3">
+        <div>
+          <p class="text-primary fw-semibold text-uppercase small mb-1">Visao Geral</p>
+          <h2 class="mb-1">Todas as obras</h2>
+          <p class="text-muted mb-0">Percentual concluido, pendencias abertas, prazo final e dias restantes.</p>
+        </div>
+        {% comment %}
+        <a href="{% url 'obras:nova_obra' %}" class="btn btn-outline-primary">
+          <i class="bi bi-plus-circle"></i> Nova obra
+        </a>
+        {% endcomment %}
       </div>
     </div>
-    <div class="position-relative">
-      <canvas id="obrasChart" height="80" class="w-100"></canvas>
-      <div id="obrasChartPlaceholder" class="position-absolute top-0 bottom-0 start-0 end-0 d-flex flex-column align-items-center justify-content-center text-center text-muted p-4 bg-white border border-light rounded d-none" role="status" aria-live="polite">
-        <i class="bi bi-info-circle fs-1 d-block mb-2"></i>
-        <p class="mb-0">Nenhum dado disponível para exibir o gráfico.</p>
-      </div>
-    </div>
-    {{ chart_lines|json_script:"obras-data" }}
-  </div>
-</div>
 
-{% if obras %}
-<div class="table-responsive">
-  <table class="table table-hover align-middle">
-    <thead class="table-light">
-      <tr>
-        <th>Obra</th>
-        <th>Cliente</th>
-        <th>Progresso</th>
-        <th>Pendências abertas</th>
-        <th>Prazo final</th>
-        <th>Dias restantes</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for obra in obras %}
-        <tr>
-          <td>
-            <div class="fw-semibold">{{ obra.nome }}</div>
-            <small class="text-muted">{{ obra.endereco }}</small>
-          </td>
-          <td>{{ obra.cliente|default:"—" }}</td>
-          <td style="min-width:180px;">
-            <div class="d-flex justify-content-between">
-              <small class="text-muted">{% if obra.status == 'finalizada' %}Concluído{% else %}Em andamento{% endif %}</small>
-              <small class="fw-semibold">{{ obra.perc_concluido }}%</small>
+    <div class="col-12">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body p-4">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
+            <div>
+              <h5 class="mb-1">Progresso das obras</h5>
+              <small class="text-muted">Percentual concluido versus dias (cada linha representa uma obra)</small>
             </div>
-            <div class="progress" style="height: 10px;">
-              <div class="progress-bar" role="progressbar" style="width: {{ obra.perc_concluido }}%;" aria-valuenow="{{ obra.perc_concluido }}" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
-          </td>
-          <td>
-            {% if obra.pendencias_abertas %}
-              <span class="badge bg-danger">{{ obra.pendencias_abertas }} aberta(s)</span>
-            {% else %}
-              <span class="badge bg-success">0</span>
-            {% endif %}
-          </td>
-          <td>{{ obra.data_fim_prevista|date:"d/m/Y"|default:"—" }}</td>
-          <td>
-            {% if obra.dias_restantes is not None %}
-              {% if obra.dias_restantes < 0 %}
-                <span class="text-danger">{{ obra.dias_restantes }} dias (vencido)</span>
-              {% else %}
-                <span class="text-muted">{{ obra.dias_restantes }} dias</span>
+          </div>
+          <div class="overview-chart" id="obrasChartWrapper">
+            <canvas id="obrasChart" role="img" aria-label="Grafico de progresso das obras"></canvas>
+            <div id="obrasChartPlaceholder" class="d-flex flex-column align-items-center justify-content-center text-center h-100 text-muted rounded border border-light px-3 py-4 d-none" role="status" aria-live="polite">
+              <i class="bi bi-info-circle fs-1 text-secondary mb-2"></i>
+              <p class="mb-2">Nenhuma obra cadastrada.</p>
+              {% if user.profile.role == "admin" %}
+              <a href="{% url 'obras:nova_obra' %}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i> Cadastrar nova obra
+              </a>
               {% endif %}
-            {% else %}
-              —
-            {% endif %}
-          </td>
-          <td class="text-end">
-            <a class="btn btn-sm btn-outline-primary" href="{% url 'obras:detalhe_obra' obra.id %}">Ver</a>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+            </div>
+          </div>
+          {{ chart_lines|json_script:"obras-data" }}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      {% if obras %}
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Obra</th>
+                  <th>Cliente</th>
+                  <th>Status</th>
+                  <th>Progresso</th>
+                  <th>Pendencias abertas</th>
+                  <th>Prazo final</th>
+                  <th>Dias restantes</th>
+                  <th class="text-end">Acoes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for obra in obras %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">
+                        {{ obra.nome }}
+                        {% if obra.status == 'finalizada' %}
+                          <span class="badge bg-success ms-2">Concluida</span>
+                        {% endif %}
+                      </div>
+                      <small class="text-muted">{{ obra.endereco|default:"-" }}</small>
+                    </td>
+                    <td>{{ obra.cliente|default:"-" }}</td>
+                    <td>
+                      <span class="badge rounded-pill {% if obra.status == 'finalizada' %}bg-success{% else %}bg-info text-dark{% endif %}">{{ obra.get_status_display }}</span>
+                    </td>
+                    <td style="min-width:190px;">
+                      <div class="d-flex justify-content-between">
+                        <small class="text-muted">{% if obra.status == 'finalizada' %}Concluida{% else %}Em andamento{% endif %}</small>
+                        <small class="fw-semibold">{{ obra.perc_concluido }}%</small>
+                      </div>
+                      <div class="progress" style="height: 10px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ obra.perc_concluido }}%;" aria-valuenow="{{ obra.perc_concluido }}" aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                    </td>
+                    <td>
+                      {% if obra.pendencias_abertas %}
+                        <span class="badge bg-danger">{{ obra.pendencias_abertas }} aberta(s)</span>
+                      {% else %}
+                        <span class="badge bg-success">0</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ obra.data_fim_prevista|date:"d/m/Y"|default:"-" }}</td>
+                    <td>
+                      {% if obra.dias_restantes is not None %}
+                        {% if obra.dias_restantes < 0 %}
+                          <span class="text-danger">{{ obra.dias_restantes }} dias (vencido)</span>
+                        {% else %}
+                          <span class="text-muted">{{ obra.dias_restantes }} dias</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-outline-primary" href="{% url 'obras:detalhe_obra' obra.id %}">Ver</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="card shadow-sm border-0">
+        <div class="card-body text-center p-5">
+          <p class="text-muted mb-3">Nenhuma obra cadastrada.</p>
+          {% if user.profile.role == "admin" %}
+          <a href="{% url 'obras:nova_obra' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Cadastrar nova obra
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
-{% else %}
-  <p class="text-center text-muted mb-0">Nenhuma obra cadastrada.</p>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -102,7 +160,9 @@
     const dataEl = document.getElementById('obras-data');
     const canvasEl = document.getElementById('obrasChart');
     const placeholderEl = document.getElementById('obrasChartPlaceholder');
-    const defaultMessage = "Nenhum dado disponível para exibir o gráfico.";
+    const defaultMessage = "Nenhuma obra cadastrada.";
+    let chartInstance = null;
+    let resizeTimer = null;
 
     const toggleView = (showChart, message) => {
       if (!canvasEl || !placeholderEl) return;
@@ -159,17 +219,18 @@
 
     toggleView(true);
     const ctx = canvasEl.getContext('2d');
-    new Chart(ctx, {
+    chartInstance = new Chart(ctx, {
       type: 'line',
       data: { datasets },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         parsing: false,
         plugins: {
           legend: { display: true },
           tooltip: {
             callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}% (dia ${ctx.parsed.x})`
+              label: context => `${context.dataset.label}: ${context.parsed.y}% (dia ${context.parsed.x})`
             }
           }
         },
@@ -182,11 +243,21 @@
           y: {
             suggestedMin: 0,
             suggestedMax: 100,
-            ticks: { callback: (v) => v + '%' },
-            title: { display: true, text: '% Concluído' }
+            ticks: { callback: (value) => value + '%' },
+            title: { display: true, text: '% Concluido' }
           }
         }
       }
+    });
+
+    window.addEventListener('resize', () => {
+      if (!chartInstance) return;
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
+      resizeTimer = setTimeout(() => {
+        chartInstance.resize();
+      }, 150);
     });
   })();
 </script>

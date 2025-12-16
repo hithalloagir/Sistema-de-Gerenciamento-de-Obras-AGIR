@@ -8,6 +8,7 @@ urlpatterns = [
     path("nova/", views.ObraCreateView.as_view(), name="nova_obra"),
     path("<int:pk>/", views.ObraDetailView.as_view(), name="detalhe_obra"),
     path("visao-geral/", views.ObraOverviewView.as_view(), name="visao_geral"),
+    path("<int:pk>/relatorio/", views.ObraReportView.as_view(), name="relatorio_obra"),
     path("<int:pk>/editar/", views.ObraUpdateView.as_view(), name="editar_obra"),
     path("<int:obra_id>/nova-categoria/", views.CategoriaCreateView.as_view(), name="nova_categoria"),
     path("<int:obra_id>/nova-pendencia/", views.PendenciaCreateView.as_view(), name="nova_pendencia"),

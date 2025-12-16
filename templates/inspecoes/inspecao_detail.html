@@ -153,9 +153,9 @@
 
         var gmapsUrl = "https://www.google.com/maps?q=" + lat + "," + lng;
         var popupContent = "{{ inspecao.obra.nome|escapejs }}<br><small>Lat: " + lat.toFixed(6) + " / Lng: " + lng.toFixed(6) + "</small>" +
-          '<div class="mt-2"><a class="btn btn-sm btn-primary" href="' + gmapsUrl + '" target="_blank" rel="noopener">' +
+          '<div class="mt-2"><a class="btn btn-sm btn-primary" href="' + gmapsUrl + '" target="_blank" rel="noopener noreferrer">' +
           '<i class="bi bi-geo-alt-fill"></i> Abrir no Google Maps</a></div>';
-        L.marker([lat, lng]).addTo(map).bindPopup(popupContent).openPopup();
+        L.marker([lat, lng]).addTo(map).bindPopup(popupContent);
 
         setTimeout(function () {
           map.invalidateSize();
