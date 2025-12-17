@@ -57,3 +57,10 @@ Para ajustar na Quarta
 - Fazer o Crud de criação de usuario dando permissão para o nivel 2 criar um nivel 1 e alocar o mesmo em uma obra (X)
 - Fazer o ajuste, onde um usuario pode estar em várias obras (x)
 
+Para ajustar na Quinta
+- Fazer testes ()
+- Colocar em Postgres ()
+- Subir o site gratuitamente e fazer testes ()
+- Ajustar pendencias ao marcar para resolver ()
+- Arrumar as gráfias de portugues que encontrar ()
+- Pensar em um modo melhor para a inspeção em conjunto com as catagorias e tarefas para não bugar o visão geral()
