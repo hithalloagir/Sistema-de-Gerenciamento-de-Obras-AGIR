@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar Usuários{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-4 gap-3">
+        <div>
+            <h1 class="h3 mb-1">Gerenciar usuários</h1>
+            <p class="text-muted mb-0">Crie novos acessos e defina as obras liberadas conforme o nível permitido.</p>
+        </div>
+        <a href="#form-novo-usuario" class="btn btn-primary">
+            <i class="bi bi-person-plus me-2"></i>Novo usuário
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-5" id="form-novo-usuario">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0 pb-0">
+                    <h2 class="h5 mb-0">Cadastro rápido</h2>
+                </div>
+                <div class="card-body">
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">Nome de usuário</label>
+                            {{ form.username }}
+                            {% if form.username.errors %}
+                                <div class="text-danger small">{{ form.username.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.role.id_for_label }}" class="form-label">Nível</label>
+                            {{ form.role }}
+                            <div class="form-text">Selecione o nível permitido para o seu perfil.</div>
+                            {% if form.role.errors %}
+                                <div class="text-danger small">{{ form.role.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            {{ form.auto_password }}
+                            <label class="form-check-label ms-2" for="{{ form.auto_password.id_for_label }}">
+                                {{ form.auto_password.label }}
+                            </label>
+                            {% if form.auto_password.errors %}
+                                <div class="text-danger small">{{ form.auto_password.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.password1.id_for_label }}" class="form-label">Senha</label>
+                                {{ form.password1 }}
+                                {% if form.password1.errors %}
+                                    <div class="text-danger small">{{ form.password1.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.password2.id_for_label }}" class="form-label">Confirme a senha</label>
+                                {{ form.password2 }}
+                                {% if form.password2.errors %}
+                                    <div class="text-danger small">{{ form.password2.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between">
+                                Obras alocadas
+                                <span class="text-muted small">Opcional</span>
+                            </label>
+                            {% if form.obras.field.queryset %}
+                                <div class="border rounded p-3 overflow-auto" style="max-height: 260px;">
+                                    {% for checkbox in form.obras %}
+                                        <div class="form-check mb-2">
+                                            {{ checkbox.tag }}
+                                            <label class="form-check-label ms-2" for="{{ checkbox.id_for_label }}">
+                                                {{ checkbox.choice_label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="form-text">{{ form.obras.help_text }}</div>
+                            {% else %}
+                                <div class="alert alert-info small mb-0">
+                                    Você ainda não possui obras disponíveis para alocação.
+                                </div>
+                            {% endif %}
+                            {% if form.obras.errors %}
+                                <div class="text-danger small mt-2">{{ form.obras.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-save me-2"></i>Salvar usuário
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 pb-0 d-flex align-items-center justify-content-between">
+                    <div>
+                        <h2 class="h5 mb-0">Usuários cadastrados</h2>
+                        <p class="text-muted small mb-0">Visão geral dos níveis e obras vinculadas.</p>
+                    </div>
+                    <span class="badge text-bg-secondary">{{ users|length }} ativos</span>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Usuário</th>
+                                        <th>Nível</th>
+                                        <th>Obras liberadas</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                        <tr>
+                                            <td class="fw-semibold">{{ user.username }}</td>
+                                            <td>
+                                                {% with profile=user.profile %}
+                                                    {% if profile.role == 'admin' %}
+                                                        <span class="badge text-bg-danger">{{ profile.get_role_display }}</span>
+                                                    {% elif profile.role == 'nivel2' %}
+                                                        <span class="badge text-bg-primary">{{ profile.get_role_display }}</span>
+                                                    {% else %}
+                                                        <span class="badge text-bg-info text-dark">{{ profile.get_role_display }}</span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </td>
+                                            <td>
+                                                {% with obras=user.obras_alocadas.all %}
+                                                    {% if obras %}
+                                                        <div class="d-flex flex-wrap gap-2">
+                                                            {% for alocacao in obras %}
+                                                                <span class="badge bg-light text-dark border">{{ alocacao.obra.nome }}</span>
+                                                            {% endfor %}
+                                                        </div>
+                                                    {% else %}
+                                                        <span class="text-muted small">Sem alocação</span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-light border text-center mb-0">
+                            Nenhum usuário cadastrado até o momento.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    (function() {
+        const autoCheckbox = document.getElementById("id_auto_password");
+        if (!autoCheckbox) return;
+        const passwordFields = [
+            document.getElementById("id_password1"),
+            document.getElementById("id_password2"),
+        ];
+        function updateState() {
+            const disabled = autoCheckbox.checked;
+            passwordFields.forEach((field) => {
+                if (!field) return;
+                field.disabled = disabled;
+                field.classList.toggle("bg-light", disabled);
+            });
+        }
+        autoCheckbox.addEventListener("change", updateState);
+        updateState();
+    })();
+</script>
+{% endblock %}

@@ -28,6 +28,7 @@ from .services import (
     clone_obra_structure,
     generate_duplicate_name,
     get_last_accessible_obra,
+    get_obras_progress_snapshot,
 )
 from accounts.mixins import RoleRequiredMixin, level_required
 from accounts.models import UserProfile
@@ -77,18 +78,19 @@ class ObraListView(LoginRequiredMixin, ListView):
         context["counts"] = counts
         context["status_filter"] = getattr(self, "status_filter", "ativa")
         context["search_query"] = getattr(self, "search_query", "")
-        # Percentual por obra
-        perc_map = {}
-        for obra in context["obras"]:
-            stats = Tarefa.objects.filter(categoria__obra=obra).aggregate(
-                total=Count("id"),
-                concluidas=Count("id", filter=Q(status="concluida")),
-            )
-            total = stats.get("total") or 0
-            concl = stats.get("concluidas") or 0
-            perc_map[obra.id] = round((concl / total) * 100, 1) if total else 0
-        for obra in context["obras"]:
-            obra.perc_concluido = perc_map.get(obra.id, 0)
+        obras = list(context["obras"])
+        context["obras"] = obras
+        progress_map = get_obras_progress_snapshot(obras)
+        for obra in obras:
+            progress = progress_map.get(obra.id, {})
+            progresso_real = progress.get("real", 0.0)
+            obra.perc_concluido = progresso_real
+            obra.progresso_real = progresso_real
+            obra.progresso_esperado = progress.get("expected")
+            obra.progresso_sem_tarefas = progress.get("sem_tarefas", True)
+            obra.progresso_delta = progress.get("delta")
+            obra.progresso_status_label = progress.get("status_label")
+            obra.progresso_badge_class = progress.get("badge_class") or ""
         return context
 
 

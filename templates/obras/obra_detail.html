@@ -17,15 +17,7 @@
           <i class="bi bi-pencil"></i> Editar
         </a>
         {% endif %}
-        {% comment %} <a href="{% url 'obras:nova_pendencia' obra.id %}" class="btn btn-outline-danger">
-          <i class="bi bi-exclamation-triangle"></i> Nova Pend??ncia
-        </a>
-        <a href="{% url 'inspecoes:nova_inspecao' obra.id %}" class="btn btn-success">
-          <i class="bi bi-plus-circle"></i> Registrar Inspe????o
-        </a>
-        <a href="{% url 'inspecoes:lista_obra' obra.id %}" class="btn btn-outline-primary">
-          <i class="bi bi-map"></i> Ver no Mapa
-        </a> {% endcomment %}
+        
         {% if can_manage_obra %}
         <form method="post" action="{% url 'obras:concluir_obra' obra.id %}" onsubmit="return confirm('Marcar obra como conclu??da?');">
           {% csrf_token %}

@@ -51,9 +51,9 @@ Para ajustar na Quarta
 - Colocar em Postgres ()
 - Subir o site gratuitamente e fazer testes ()
 - Na tela inicial 
-	- Ter Progresso Real da obra e Progresso Esperado ()
+	- Ter Progresso Real da obra e Progresso Esperado (X)
 - Deixar todo o projeto profissional, no quesito estrutura e código () 
 - Ajustar o gráfico de visão geral ()
-- Fazer o Crud de criação de usuario dando permissão para o nivel 2 criar um nivel 1 e alocar o mesmo em uma obra ()
+- Fazer o Crud de criação de usuario dando permissão para o nivel 2 criar um nivel 1 e alocar o mesmo em uma obra (X)
 - Fazer o ajuste, onde um usuario pode estar em várias obras ()
 
