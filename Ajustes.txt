@@ -47,7 +47,7 @@ Para ajustar (Terça)
 
 
 Para ajustar na Quarta
-- Fazer testes ()
+- Fazer testes (x)
 - Colocar em Postgres ()
 - Subir o site gratuitamente e fazer testes ()
 - Na tela inicial 
@@ -61,6 +61,6 @@ Para ajustar na Quinta
 - Fazer testes ()
 - Colocar em Postgres ()
 - Subir o site gratuitamente e fazer testes ()
-- Ajustar pendencias ao marcar para resolver ()
+- Ajustar pendencias ao marcar para resolver (X)
 - Arrumar as gráfias de portugues que encontrar ()
 - Pensar em um modo melhor para a inspeção em conjunto com as catagorias e tarefas para não bugar o visão geral()

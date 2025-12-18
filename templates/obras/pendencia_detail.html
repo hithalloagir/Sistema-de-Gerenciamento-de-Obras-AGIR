@@ -87,6 +87,11 @@
               <img src="{{ pendencia.imagem_resolucao.url }}" class="img-fluid rounded shadow-sm" alt="Imagem da resolucao">
             </a>
           </div>
+        {% elif pendencia.status == 'resolvida' %}
+          <div class="col-md-6">
+            <p class="small text-muted mb-1">Imagem da resolucao</p>
+            <p class="mb-0 text-muted">Sem imagem de solucao.</p>
+          </div>
         {% endif %}
       </div>
     </div>
@@ -143,7 +148,7 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Imagem da resolucao</label>
-            <input type="file" name="imagem_resolucao" accept="image/jpeg,image/png,image/webp" class="form-control">
+            <input type="file" name="imagem_resolucao" accept="image/jpg,image/jpeg,image/png,image/webp" class="form-control">
             <div class="form-text">Opcional. JPG, PNG ou WEBP ate 5MB.</div>
           </div>
         </div>

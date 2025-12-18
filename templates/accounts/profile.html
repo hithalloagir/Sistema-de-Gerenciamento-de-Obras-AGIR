@@ -17,18 +17,18 @@
         <p class="mb-1 text-muted">Usuário</p>
         <h5 class="mb-0">{{ request.user.username }}</h5>
       </div>
-      <div class="col-md-6">
+      {% comment %} <div class="col-md-6">
         <p class="mb-1 text-muted">Email</p>
         <h5 class="mb-0">{{ request.user.email|default:"—" }}</h5>
-      </div>
+      </div> {% endcomment %}
       <div class="col-md-6">
         <p class="mb-1 text-muted">Papel</p>
         <h5 class="mb-0">{{ request.user.profile.get_role_display }}</h5>
       </div>
-      <div class="col-md-6">
+      {% comment %} <div class="col-md-6">
         <p class="mb-1 text-muted">Empresa</p>
         <h5 class="mb-0">{{ request.user.profile.empresa|default:"—" }}</h5>
-      </div>
+      </div> {% endcomment %}
       <div class="col-md-6">
         <p class="mb-1 text-muted">Primeiro acesso</p>
         <h5 class="mb-0">{{ request.user.date_joined|date:"d/m/Y H:i" }}</h5>

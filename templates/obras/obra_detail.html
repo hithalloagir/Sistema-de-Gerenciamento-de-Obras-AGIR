@@ -122,13 +122,13 @@
   <div class="card-body">
     <ul class="nav nav-pills mb-3">
       <li class="nav-item">
-        <a class="nav-link {% if pendencias_status == 'aberta' %}active{% endif %}" href="?pend_status=aberta#pendencias">Abertas ({{ pendencias_counts.aberta|default:0 }})</a>
+        <a class="nav-link {% if pendencias_status == 'aberta' %}active{% endif %}" href="?pend_status=aberta#pendencias">Abertas ({{ abertas_count }})</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link {% if pendencias_status == 'andamento' %}active{% endif %}" href="?pend_status=andamento#pendencias">Em andamento ({{ pendencias_counts.andamento|default:0 }})</a>
+        <a class="nav-link {% if pendencias_status == 'andamento' %}active{% endif %}" href="?pend_status=andamento#pendencias">Em andamento ({{ andamento_count }})</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link {% if pendencias_status == 'resolvida' %}active{% endif %}" href="?pend_status=resolvida#pendencias">Resolvidas ({{ pendencias_counts.resolvida|default:0 }})</a>
+        <a class="nav-link {% if pendencias_status == 'resolvida' %}active{% endif %}" href="?pend_status=resolvida#pendencias">Resolvidas ({{ resolvidas_count }})</a>
       </li>
     </ul>
 
@@ -157,6 +157,15 @@
                   <div class="mt-1">
                     <span class="badge {% if pendencia.prioridade == 'alta' %}bg-danger{% elif pendencia.prioridade == 'media' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">Prioridade {{ pendencia.get_prioridade_display }}</span>
                   </div>
+                  {% if pendencia.status == 'resolvida' %}
+                    <div class="small mt-1">
+                      {% if pendencia.imagem_resolucao %}
+                        <a class="link-success" href="{{ pendencia.imagem_resolucao.url }}" target="_blank" rel="noreferrer">Imagem da solucao</a>
+                      {% else %}
+                        <span class="text-muted">Sem imagem de solucao</span>
+                      {% endif %}
+                    </div>
+                  {% endif %}
                 </td>
                 <td class="text-center">
                   <span class="badge {% if pendencia.status == 'resolvida' %}bg-success{% elif pendencia.status == 'andamento' %}bg-primary{% else %}bg-danger{% endif %}">{{ pendencia.get_status_display }}</span>
@@ -280,7 +289,7 @@
 {% if obra_status != 'finalizada' %}
 <div class="modal fade" id="resolverPendenciaModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form method="post" class="modal-content" id="resolverPendenciaForm">
+    <form method="post" class="modal-content" id="resolverPendenciaForm" enctype="multipart/form-data">
       {% csrf_token %}
       <input type="hidden" name="novo_status" value="resolvida">
       <input type="hidden" name="next" value="{{ pendencias_redirect }}#pendencias">
@@ -294,6 +303,14 @@
           <label class="form-label" for="resolverPendenciaSolucao">Solução adotada</label>
           <textarea class="form-control" name="solucao" id="resolverPendenciaSolucao" rows="3" required></textarea>
           <div class="form-text">Obrigatório para concluir a pendência.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="resolverPendenciaImagem">Imagem da solucao (opcional)</label>
+          <input class="form-control" type="file" id="resolverPendenciaImagem" name="imagem_resolucao" accept="image/jpg,image/jpeg,image/png,image/webp">
+          <div class="form-text">JPG, PNG ou WEBP ate 5MB.</div>
+          <div class="mt-2">
+            <img id="resolverPendenciaPreview" class="img-fluid rounded shadow-sm d-none" alt="Preview da imagem da solucao" style="max-height: 220px; object-fit: cover;">
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -469,6 +486,30 @@
         if (textarea) {
           textarea.value = '';
           setTimeout(() => textarea.focus(), 100);
+        }
+
+        const previewEl = document.getElementById('resolverPendenciaPreview');
+        const fileInput = form.querySelector('input[name="imagem_resolucao"]');
+        if (fileInput) {
+          fileInput.value = '';
+          if (!fileInput.dataset.previewBound) {
+            fileInput.dataset.previewBound = '1';
+            fileInput.addEventListener('change', () => {
+              const file = fileInput.files && fileInput.files[0];
+              if (!previewEl) return;
+              if (file) {
+                previewEl.src = URL.createObjectURL(file);
+                previewEl.classList.remove('d-none');
+              } else {
+                previewEl.src = '';
+                previewEl.classList.add('d-none');
+              }
+            });
+          }
+        }
+        if (previewEl) {
+          previewEl.src = '';
+          previewEl.classList.add('d-none');
         }
       }
     });

@@ -33,7 +33,7 @@ from .services import (
 )
 from .utils import calculate_progress_milestones
 from accounts.mixins import RoleRequiredMixin, level_required
-from accounts.models import UserProfile
+from accounts.models import UserProfile, ObraAlocacao
 from accounts.utils import (
     filter_obras_for_user,
     filter_queryset_by_user_obras,
@@ -579,6 +579,7 @@ class PendenciaCreateView(RoleRequiredMixin, CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
         kwargs["obra"] = self.obra  # filtra tarefas da obra
         return kwargs
 
@@ -588,6 +589,23 @@ class PendenciaCreateView(RoleRequiredMixin, CreateView):
             form.add_error("tarefa", "Tarefa não pertence a esta obra.")
             return self.form_invalid(form)
 
+        user_level = get_user_level(self.request.user)
+        responsavel = form.cleaned_data.get("responsavel")
+
+        if user_level == UserProfile.Level.NIVEL1:
+            form.instance.responsavel = self.request.user
+        elif user_level == UserProfile.Level.NIVEL2 and responsavel is not None:
+            if responsavel.pk != self.request.user.pk:
+                responsavel_level = get_user_level(responsavel)
+                is_allowed_level = responsavel_level == UserProfile.Level.NIVEL1
+                is_allocated = ObraAlocacao.objects.filter(obra=self.obra, usuario=responsavel).exists()
+                if not (is_allowed_level and is_allocated):
+                    form.add_error(
+                        "responsavel",
+                        "Responsavel invalido. Selecione voce ou um usuario Nivel 1 alocado nesta obra.",
+                    )
+                    return self.form_invalid(form)
+
         form.instance.obra = self.obra
         form.instance.categoria = tarefa.categoria
         return super().form_valid(form)
@@ -595,6 +613,7 @@ class PendenciaCreateView(RoleRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["obra"] = self.obra
+        context["user_level"] = get_user_level(self.request.user)
         return context
 
     def get_success_url(self):
@@ -619,17 +638,28 @@ class ObraDetailView(LoginRequiredMixin, DetailView):
         categorias = obra.categorias.all()
 
         pend_status = self.request.GET.get("pend_status") or "aberta"
-        pendencias_qs = (
-            obra.pendencias.select_related("tarefa", "categoria", "responsavel")
+        base_pendencias_qs = (
+            Pendencia.objects.filter(obra=obra)
+            .select_related("tarefa", "categoria", "responsavel")
             .prefetch_related("solucoes__usuario")
             .order_by("-data_abertura")
         )
-        pend_counts_qs = pendencias_qs.values("status").annotate(total=Count("id"))
-        pend_counts = {"aberta": 0, "andamento": 0, "resolvida": 0}
-        pend_counts.update({item["status"]: item["total"] for item in pend_counts_qs})
-        if pend_status not in pend_counts:
+
+        pendencias_abertas = base_pendencias_qs.filter(status="aberta")
+        pendencias_andamento = base_pendencias_qs.filter(status="andamento")
+        pendencias_resolvidas = base_pendencias_qs.filter(status="resolvida")
+
+        abertas_count = pendencias_abertas.count()
+        andamento_count = pendencias_andamento.count()
+        resolvidas_count = pendencias_resolvidas.count()
+
+        if pend_status == "andamento":
+            pendencias = pendencias_andamento
+        elif pend_status == "resolvida":
+            pendencias = pendencias_resolvidas
+        else:
             pend_status = "aberta"
-        pendencias = pendencias_qs.filter(status=pend_status)
+            pendencias = pendencias_abertas
 
         stats = Tarefa.objects.filter(categoria__obra=obra).aggregate(
             total_tarefas=Count("id"),
@@ -658,8 +688,14 @@ class ObraDetailView(LoginRequiredMixin, DetailView):
             "atrasadas": atrasadas,
         }
         context["pendencias"] = pendencias
-        context["pendencias_counts"] = pend_counts
         context["pendencias_status"] = pend_status
+        context["pendencias_abertas"] = pendencias_abertas
+        context["pendencias_andamento"] = pendencias_andamento
+        context["pendencias_resolvidas"] = pendencias_resolvidas
+        context["abertas_count"] = abertas_count
+        context["andamento_count"] = andamento_count
+        context["em_andamento_count"] = andamento_count
+        context["resolvidas_count"] = resolvidas_count
         context["inspecoes_page"] = inspecoes_page
         context["inspecoes_total"] = inspecoes_page.paginator.count
         context["pendencias_redirect"] = self.request.get_full_path()

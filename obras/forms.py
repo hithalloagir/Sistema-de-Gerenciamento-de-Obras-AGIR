@@ -1,5 +1,8 @@
 from django import forms
+from django.contrib.auth import get_user_model
 from .models import Obra, Categoria, Pendencia, Tarefa, AnexoObra
+from accounts.models import UserProfile
+from accounts.utils import get_user_level
 
 
 class ObraForm(forms.ModelForm):
@@ -88,10 +91,43 @@ class PendenciaForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
         obra = kwargs.pop("obra", None)
         super().__init__(*args, **kwargs)
         if obra:
             self.fields["tarefa"].queryset = Tarefa.objects.filter(categoria__obra=obra)
+
+        if "responsavel" not in self.fields:
+            return
+
+        User = get_user_model()
+        if not getattr(user, "is_authenticated", False):
+            self.fields["responsavel"].queryset = User.objects.none()
+            return
+
+        user_level = get_user_level(user)
+
+        if user_level == UserProfile.Level.NIVEL1:
+            self.initial["responsavel"] = user
+            self.fields.pop("responsavel", None)
+            return
+
+        if user_level == UserProfile.Level.NIVEL2:
+            if obra is None:
+                self.fields["responsavel"].queryset = User.objects.filter(pk=user.pk)
+                return
+
+            allowed_qs = User.objects.filter(pk=user.pk)
+            allowed_qs = allowed_qs | User.objects.filter(
+                obras_alocadas__obra=obra,
+                profile__role=UserProfile.Level.NIVEL1,
+            )
+            self.fields["responsavel"].queryset = allowed_qs.distinct().order_by("username")
+            return
+
+        if user_level == UserProfile.Level.ADMIN:
+            self.fields["responsavel"].queryset = User.objects.all().order_by("username")
+            return
 
 
 # Formset para adicionar categorias ao criar uma obra
