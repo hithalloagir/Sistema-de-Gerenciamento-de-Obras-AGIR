@@ -43,7 +43,7 @@
               <tr>
                 <th>Data</th>
                 <th>Usuário</th>
-                <th>Categoria/Tarefa</th>
+                {% comment %} <th>Categoria/Tarefa</th> {% endcomment %}
                 <th>Coordenadas</th>
               </tr>
             </thead>
@@ -52,7 +52,7 @@
                 <tr onclick="window.location.href='{% url 'inspecoes:detalhe_inspecao' insp.id %}'" style="cursor:pointer;">
                   <td>{{ insp.data_inspecao|date:"d/m/Y" }}</td>
                   <td>{{ insp.usuario.username }}</td>
-                  <td>{{ insp.categoria|default_if_none:"" }} / {{ insp.tarefa|default_if_none:"" }}</td>
+                  {% comment %} <td>{{ insp.categoria|default_if_none:"" }} / {{ insp.tarefa|default_if_none:"" }}</td> {% endcomment %}
                   <td><small>{{ insp.latitude|default_if_none:"N/A" }}, {{ insp.longitude|default_if_none:"N/A" }}</small></td>
                 </tr>
               {% empty %}

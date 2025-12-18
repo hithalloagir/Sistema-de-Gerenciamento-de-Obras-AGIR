@@ -500,7 +500,6 @@ class TarefaDeleteView(RoleRequiredMixin, DeleteView):
 @login_required
 @require_POST
 @login_required
-@require_POST
 @level_required(
     [
         UserProfile.Level.ADMIN,
@@ -511,6 +510,14 @@ class TarefaDeleteView(RoleRequiredMixin, DeleteView):
     message="Você não tem permissão para atualizar esta tarefa.",
 )
 def update_task_progress(request):
+    return JsonResponse(
+        {
+            "status": "error",
+            "message": "Atualização de percentual desativada. As tarefas estão em modo somente leitura.",
+        },
+        status=403,
+    )
+
     try:
         data = json.loads(request.body)
         task_id = data.get("task_id")

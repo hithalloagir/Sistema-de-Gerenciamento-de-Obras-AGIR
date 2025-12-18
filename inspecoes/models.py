@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 from obras.models import Obra, Categoria, Tarefa, Pendencia
 
@@ -117,6 +118,38 @@ class ItemInspecao(models.Model):
 
     def __str__(self):
         return f"{self.inspecao} - {self.ponto}"
+
+
+class InspecaoAlteracaoTarefa(models.Model):
+    inspecao = models.ForeignKey(
+        Inspecao, on_delete=models.CASCADE, related_name="alteracoes_tarefas"
+    )
+    tarefa = models.ForeignKey(
+        Tarefa, on_delete=models.PROTECT, related_name="alteracoes_inspecao"
+    )
+
+    percentual_antes = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    percentual_depois = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("inspecao", "tarefa")
+        ordering = ["-criado_em", "-id"]
+
+    @property
+    def delta(self):
+        return int(self.percentual_depois) - int(self.percentual_antes)
+
+    def __str__(self):
+        return (
+            f"Inspeção {self.inspecao_id} - {self.tarefa} "
+            f"({self.percentual_antes}% → {self.percentual_depois}%)"
+        )
 
 
 @receiver(post_save, sender=Inspecao)

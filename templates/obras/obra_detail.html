@@ -231,7 +231,7 @@
             <tr>
               <th scope="col">Data</th>
               <th scope="col">Usuário</th>
-              <th scope="col">Categoria / Tarefa</th>
+              {% comment %} <th scope="col">Categoria / Tarefa</th> {% endcomment %}
               <th scope="col">Coordenadas</th>
               <th scope="col" class="text-end">Ações</th>
             </tr>
@@ -244,10 +244,10 @@
                   <div class="text-muted small">{{ insp.data_hora|date:"H:i" }}</div>
                 </td>
                 <td>{{ insp.usuario.username }}</td>
-                <td class="small">
+                {% comment %} <td class="small">
                   {{ insp.categoria|default_if_none:"Sem categoria" }}<br>
                   {{ insp.tarefa|default_if_none:"Sem tarefa" }}
-                </td>
+                </td> {% endcomment %}
                 <td>
                   {% if insp.latitude and insp.longitude %}
                     <span class="badge bg-light text-dark">
@@ -408,19 +408,8 @@
                   </a>
                   {% endif %}
                   <strong>{{ tarefa.nome }}</strong> -
-                  {% if obra_status != 'finalizada' and can_update_task_progress %}
-                  <span class="badge bg-info text-dark task-progress"
-                        data-task-id="{{ tarefa.id }}"
-                        data-category-id="{{ categoria.id }}"
-                        data-can-edit="true"
-                        data-lock-level1="{% if tarefa.status == 'concluida' %}true{% else %}false{% endif %}"
-                        data-lock-message="{{ nivel1_lock_message }}"
-                        style="cursor: pointer;" title="Clique para editar">
-                    {{ tarefa.percentual_concluido }}%</span>
-                  {% else %}
                   <span class="badge bg-secondary text-white">
                     {{ tarefa.percentual_concluido }}%</span>
-                  {% endif %}
                 </div>
                   <div class="d-flex align-items-center" id="task-status-wrapper-{{ tarefa.id }}">
                     {% if tarefa.status == 'concluida' %}
@@ -466,7 +455,6 @@
 {% block extra_js %}
 {% if obra.status != 'finalizada' %}
 <script>
-  window.updateTaskProgressUrl = "{% url 'obras:update_task_progress' %}";
   const resolverPendenciaModal = document.getElementById('resolverPendenciaModal');
   if (resolverPendenciaModal) {
     resolverPendenciaModal.addEventListener('show.bs.modal', function (event) {
@@ -515,6 +503,5 @@
     });
   }
 </script>
-<script src="{% static 'js/obras.js' %}"></script>
 {% endif %}
 {% endblock %}
