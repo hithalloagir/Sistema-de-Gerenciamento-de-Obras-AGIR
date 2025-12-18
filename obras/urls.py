@@ -10,6 +10,7 @@ urlpatterns = [
     path("visao-geral/", views.ObraOverviewView.as_view(), name="visao_geral"),
     path("<int:pk>/relatorio/", views.ObraReportView.as_view(), name="relatorio_obra"),
     path("<int:pk>/editar/", views.ObraUpdateView.as_view(), name="editar_obra"),
+    path("<int:pk>/excluir/", views.ExcluirObraView.as_view(), name="excluir_obra"),
     path("<int:obra_id>/nova-categoria/", views.CategoriaCreateView.as_view(), name="nova_categoria"),
     path("categorias/<int:pk>/editar/", views.CategoriaUpdateView.as_view(), name="editar_categoria"),
     path("categorias/<int:pk>/excluir/", views.CategoriaDeleteView.as_view(), name="excluir_categoria"),

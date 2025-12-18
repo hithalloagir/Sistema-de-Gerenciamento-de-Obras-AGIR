@@ -65,7 +65,11 @@
       {% for p in pendencias %}
         <tr>
           <td>
-            <a href="{% url 'obras:detalhe_obra' p.obra.id %}" class="text-decoration-none">{{ p.obra.nome }}</a>
+            {% if p.obra.deletada %}
+              <span class="text-muted">Obra deletada</span>
+            {% else %}
+              <a href="{% url 'obras:detalhe_obra' p.obra.id %}" class="text-decoration-none">{{ p.obra.nome }}</a>
+            {% endif %}
           </td>
           <td>{{ p.tarefa.nome }}</td>
           <td class="text-truncate" style="max-width: 260px;">

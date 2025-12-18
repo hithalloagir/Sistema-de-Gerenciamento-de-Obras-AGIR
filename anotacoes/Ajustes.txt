@@ -62,5 +62,5 @@ Para ajustar na Quinta
 - Colocar em Postgres ()
 - Subir o site gratuitamente e fazer testes ()
 - Ajustar pendencias ao marcar para resolver (X)
-- Arrumar as gráfias de portugues que encontrar ()
-- Pensar em um modo melhor para a inspeção em conjunto com as catagorias e tarefas para não bugar o visão geral()
+- Arrumar as gráfias de portugues que encontrar (x)
+- Pensar em um modo melhor para a inspeção em conjunto com as catagorias e tarefas para não bugar o visão geral(x)

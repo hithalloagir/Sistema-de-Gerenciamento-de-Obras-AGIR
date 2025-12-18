@@ -31,6 +31,14 @@
           <i class="bi bi-check2-circle"></i> Concluída
         </span>
       {% endif %}
+      {% if can_manage_obra %}
+        <form method="post" action="{% url 'obras:excluir_obra' obra.id %}" onsubmit="return confirm('Deseja realmente excluir esta obra? As pendencias permanecerao no backlog como \"Obra deletada\".') && confirm('Confirmacao final: esta acao nao pode ser desfeita. Deseja excluir agora?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-danger">
+            <i class="bi bi-trash"></i> Excluir
+          </button>
+        </form>
+      {% endif %}
     </div>
   </div>
   <div class="card-body">

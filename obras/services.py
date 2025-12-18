@@ -12,7 +12,7 @@ from .models import Categoria, Obra, ObraSnapshot, Tarefa
 def get_last_accessible_obra(user) -> Optional[Obra]:
     """Retorna a obra mais recente disponivel para o usuario, priorizando as ativas."""
     base_qs = filter_obras_for_user(
-        Obra.objects.prefetch_related("categorias__tarefas"),
+        Obra.objects.filter(deletada=False).prefetch_related("categorias__tarefas"),
         user,
     )
     ordered_qs = base_qs.order_by("-criado_em", "-id")

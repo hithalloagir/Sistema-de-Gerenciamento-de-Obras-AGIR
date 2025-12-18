@@ -9,13 +9,14 @@ from .mixins import RoleRequiredMixin
 from .models import UserProfile
 from .utils import manageable_users_queryset
 
+
 class ProfileView(LoginRequiredMixin, TemplateView):
     template_name = "accounts/profile.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         alocacoes = (
-            self.request.user.obras_alocadas.select_related("obra").order_by("obra__nome")
+            self.request.user.obras_alocadas.select_related("obra").filter(obra__deletada=False).order_by("obra__nome")
             if hasattr(self.request.user, "obras_alocadas")
             else []
         )
@@ -86,7 +87,7 @@ class UserEditView(RoleRequiredMixin, TemplateView):
         form = self.get_form()
         if form.is_valid():
             form.save()
-            messages.success(request, f"UsuÇ­rio {self.target_user.username} atualizado com sucesso.")
+            messages.success(request, f"Usuário {self.target_user.username} atualizado com sucesso.")
             return redirect("accounts:manage_users")
         messages.error(request, "Revise os campos destacados e tente novamente.")
         return self.render_to_response(self.get_context_data(form=form))
@@ -121,7 +122,7 @@ class UserDeleteView(RoleRequiredMixin, TemplateView):
     def post(self, request, *args, **kwargs):
         username = self.target_user.username
         self.target_user.delete()
-        messages.success(request, f"UsuÇ­rio {username} excluÇðdo com sucesso.")
+        messages.success(request, f"Usuá­rio {username} excluído com sucesso.")
         return redirect("accounts:manage_users")
 
     def get_context_data(self, **kwargs):

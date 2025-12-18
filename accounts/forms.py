@@ -69,7 +69,10 @@ class UserCreationWithRoleForm(forms.Form):
         self.fields["role"].choices = filtered_choices
 
     def _setup_obras_field(self):
-        queryset = filter_obras_for_user(Obra.objects.all().order_by("nome"), self.creator)
+        queryset = filter_obras_for_user(
+            Obra.objects.filter(deletada=False).order_by("nome"),
+            self.creator,
+        )
         self.fields["obras"].queryset = queryset
 
     def clean_username(self):
@@ -197,7 +200,10 @@ class UserUpdateForm(forms.Form):
         self.fields["role"].choices = filtered_choices
 
     def _setup_obras_field(self):
-        queryset = filter_obras_for_user(Obra.objects.all().order_by("nome"), self.editor)
+        queryset = filter_obras_for_user(
+            Obra.objects.filter(deletada=False).order_by("nome"),
+            self.editor,
+        )
         self.fields["obras"].queryset = queryset
 
     def _set_initial_values(self):
@@ -222,14 +228,14 @@ class UserUpdateForm(forms.Form):
         if self.user_obj:
             qs = qs.exclude(pk=self.user_obj.pk)
         if qs.exists():
-            raise ValidationError("JÇ­ existe um usuÇ­rio com esse nome.")
+            raise ValidationError("Já­ existe um usuário com esse nome.")
         return username
 
     def clean_role(self):
         role = self.cleaned_data["role"]
         profile = get_or_create_profile(self.editor)
         if not profile or not profile.can_create_level(role):
-            raise ValidationError("VocÇ¦ nÇœo tem permissÇœo para definir esse nÇðvel.")
+            raise ValidationError("Você não tem permissão para definir esse nível.")
         return role
 
     def clean_obras(self):
@@ -239,7 +245,7 @@ class UserUpdateForm(forms.Form):
         allowed_ids = set(self.fields["obras"].queryset.values_list("id", flat=True))
         invalid = [obra for obra in obras if obra.id not in allowed_ids]
         if invalid:
-            raise ValidationError("VocÇ¦ tentou alocar obras fora do seu escopo permitido.")
+            raise ValidationError("Você tentou alocar obras fora do seu escopo permitido.")
         return obras
 
     def clean(self):
@@ -258,7 +264,7 @@ class UserUpdateForm(forms.Form):
 
     def save(self):
         if not self.user_obj:
-            raise ValidationError("UsuÇ­rio invÇ­lido.")
+            raise ValidationError("Usuá­rio invá­lido.")
 
         role = self.cleaned_data["role"]
         obras = self.cleaned_data.get("obras") or Obra.objects.none()

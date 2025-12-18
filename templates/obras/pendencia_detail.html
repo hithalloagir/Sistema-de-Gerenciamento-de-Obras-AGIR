@@ -41,7 +41,13 @@
     <div class="row g-3">
       <div class="col-md-6">
         <p class="mb-1 text-muted">Obra</p>
-        <p class="mb-0"><a href="{% url 'obras:detalhe_obra' pendencia.obra.id %}">{{ pendencia.obra.nome }}</a></p>
+        <p class="mb-0">
+          {% if pendencia.obra.deletada %}
+            <span class="text-muted">Obra deletada</span>
+          {% else %}
+            <a href="{% url 'obras:detalhe_obra' pendencia.obra.id %}">{{ pendencia.obra.nome }}</a>
+          {% endif %}
+        </p>
       </div>
       <div class="col-md-6">
         <p class="mb-1 text-muted">Tarefa</p>
@@ -99,7 +105,9 @@
   <div class="card-footer d-flex flex-wrap gap-2 justify-content-between">
     <div class="d-flex gap-2">
       <a class="btn btn-outline-secondary btn-sm" href="{% url 'obras:listar_pendencias' %}">Voltar para backlog</a>
-      <a class="btn btn-outline-primary btn-sm" href="{% url 'obras:detalhe_obra' pendencia.obra.id %}">Ir para obra relacionada</a>
+      {% if not pendencia.obra.deletada %}
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'obras:detalhe_obra' pendencia.obra.id %}">Ir para obra relacionada</a>
+      {% endif %}
     </div>
   </div>
 </div>

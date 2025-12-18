@@ -54,7 +54,10 @@ class ObraListView(LoginRequiredMixin, ListView):
     context_object_name = "obras"
 
     def get_queryset(self):
-        qs = filter_obras_for_user(Obra.objects.all().order_by("nome"), self.request.user)
+        qs = filter_obras_for_user(
+            Obra.objects.filter(deletada=False).order_by("nome"),
+            self.request.user,
+        )
         status = self.request.GET.get("status") or "ativa"
         if status not in STATUS_FILTERS:
             status = "ativa"
@@ -70,7 +73,10 @@ class ObraListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        base_qs = filter_obras_for_user(Obra.objects.all(), self.request.user)
+        base_qs = filter_obras_for_user(
+            Obra.objects.filter(deletada=False),
+            self.request.user,
+        )
         if self.search_query:
             base_qs = base_qs.filter(nome__icontains=self.search_query)
         status_counts = base_qs.values("status").annotate(total=Count("id"))
@@ -104,7 +110,7 @@ class ObraOverviewView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         qs = (
             Obra.objects
-            .all()
+            .filter(deletada=False)
             .prefetch_related("categorias__tarefas")
             .annotate(pendencias_abertas=Count("pendencias", filter=Q(pendencias__status="aberta")))
         )
@@ -275,7 +281,10 @@ class ObraUpdateView(RoleRequiredMixin, UpdateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return filter_obras_for_user(super().get_queryset(), self.request.user)
+        return filter_obras_for_user(
+            super().get_queryset().filter(deletada=False),
+            self.request.user,
+        )
 
     def get_success_url(self):
         return reverse_lazy("obras:detalhe_obra", kwargs={"pk": self.object.pk})
@@ -288,7 +297,7 @@ class CategoriaCreateView(RoleRequiredMixin, CreateView):
     allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
 
     def dispatch(self, request, *args, **kwargs):
-        self.obra = get_object_or_404(Obra, pk=self.kwargs['obra_id'])
+        self.obra = get_object_or_404(Obra, pk=self.kwargs['obra_id'], deletada=False)
         denied = self.ensure_obra_access(self.obra)
         if denied:
             return denied
@@ -316,7 +325,10 @@ class TarefaCreateView(RoleRequiredMixin, CreateView):
     allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
 
     def dispatch(self, request, *args, **kwargs):
-        self.categoria = get_object_or_404(Categoria, pk=self.kwargs['categoria_id'])
+        self.categoria = get_object_or_404(
+            Categoria.objects.select_related("obra").filter(obra__deletada=False),
+            pk=self.kwargs["categoria_id"],
+        )
         denied = self.ensure_obra_access(self.categoria.obra)
         if denied:
             return denied
@@ -347,7 +359,12 @@ class TarefaUpdateView(RoleRequiredMixin, UpdateView):
     allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related("categoria__obra")
+        qs = (
+            super()
+            .get_queryset()
+            .select_related("categoria__obra")
+            .filter(categoria__obra__deletada=False)
+        )
         return filter_queryset_by_user_obras(qs, self.request.user, obra_lookup="categoria__obra")
 
     def dispatch(self, request, *args, **kwargs):
@@ -381,7 +398,7 @@ class CategoriaUpdateView(RoleRequiredMixin, UpdateView):
     allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related("obra")
+        qs = super().get_queryset().select_related("obra").filter(obra__deletada=False)
         return filter_queryset_by_user_obras(qs, self.request.user, obra_lookup="obra")
 
     def dispatch(self, request, *args, **kwargs):
@@ -411,7 +428,7 @@ class CategoriaDeleteView(RoleRequiredMixin, DeleteView):
     allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related("obra")
+        qs = super().get_queryset().select_related("obra").filter(obra__deletada=False)
         return filter_queryset_by_user_obras(qs, self.request.user, obra_lookup="obra")
 
     def dispatch(self, request, *args, **kwargs):
@@ -456,7 +473,12 @@ class TarefaDeleteView(RoleRequiredMixin, DeleteView):
     allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related("categoria__obra")
+        qs = (
+            super()
+            .get_queryset()
+            .select_related("categoria__obra")
+            .filter(categoria__obra__deletada=False)
+        )
         return filter_queryset_by_user_obras(qs, self.request.user, obra_lookup="categoria__obra")
 
     def dispatch(self, request, *args, **kwargs):
@@ -576,7 +598,7 @@ class PendenciaCreateView(RoleRequiredMixin, CreateView):
     ]
 
     def dispatch(self, request, *args, **kwargs):
-        self.obra = get_object_or_404(Obra, pk=kwargs["obra_id"])
+        self.obra = get_object_or_404(Obra, pk=kwargs["obra_id"], deletada=False)
         denied = self.ensure_obra_access(self.obra)
         if denied:
             return denied
@@ -634,7 +656,12 @@ class ObraDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "obra"
 
     def get_queryset(self):
-        qs = super().get_queryset().prefetch_related("categorias__tarefas", "anexos")
+        qs = (
+            super()
+            .get_queryset()
+            .filter(deletada=False)
+            .prefetch_related("categorias__tarefas", "anexos")
+        )
         return filter_obras_for_user(qs, self.request.user)
 
     def get_context_data(self, **kwargs):
@@ -739,6 +766,7 @@ class ObraReportView(LoginRequiredMixin, DetailView):
         qs = (
             super()
             .get_queryset()
+            .filter(deletada=False)
             .prefetch_related(
                 "categorias__tarefas",
                 "pendencias__tarefa",
@@ -821,7 +849,7 @@ class AnexoObraCreateView(RoleRequiredMixin, CreateView):
     ]
 
     def dispatch(self, request, *args, **kwargs):
-        self.obra = get_object_or_404(Obra, pk=self.kwargs["obra_id"])
+        self.obra = get_object_or_404(Obra, pk=self.kwargs["obra_id"], deletada=False)
         denied = self.ensure_obra_access(self.obra)
         if denied:
             return denied
@@ -846,7 +874,7 @@ class AnexoObraCreateView(RoleRequiredMixin, CreateView):
 class ConcluirObraView(RoleRequiredMixin, View):
     allowed_roles = [UserProfile.Level.ADMIN]
     def post(self, request, pk):
-        obra = get_object_or_404(Obra, pk=pk)
+        obra = get_object_or_404(Obra, pk=pk, deletada=False)
         denied = self.ensure_obra_access(obra)
         if denied:
             return denied
@@ -856,6 +884,24 @@ class ConcluirObraView(RoleRequiredMixin, View):
         obra.save(update_fields=["status", "data_fim_prevista", "atualizado_em"])
         messages.success(request, "Obra marcada como concluída.")
         return redirect("obras:detalhe_obra", pk=obra.pk)
+
+
+class ExcluirObraView(RoleRequiredMixin, View):
+    allowed_roles = [UserProfile.Level.ADMIN]
+
+    def post(self, request, pk):
+        obra = get_object_or_404(Obra, pk=pk, deletada=False)
+        denied = self.ensure_obra_access(obra)
+        if denied:
+            return denied
+
+        ObraAlocacao.objects.filter(obra=obra).delete()
+        obra.soft_delete()
+        messages.success(
+            request,
+            "Obra excluida. As pendencias foram mantidas no backlog como 'Obra deletada'.",
+        )
+        return redirect("obras:listar_obras")
 
 
 class PendenciaListView(LoginRequiredMixin, ListView):
