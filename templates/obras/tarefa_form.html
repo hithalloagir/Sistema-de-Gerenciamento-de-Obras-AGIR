@@ -19,15 +19,28 @@
       </ol>
     </nav>
 
-    <h1 class="mb-4">
-      {% if object %}Editar Tarefa{% else %}Adicionar Tarefa em "{{ current_categoria.nome }}"{% endif %}
-    </h1>
-
-    <form method="post">
-      {% csrf_token %}
-      {{ form|crispy }}
-      <button type="submit" class="btn btn-primary mt-3">Salvar Tarefa</button>
-      <a class="btn btn-secondary mt-3" href="{% url 'obras:detalhe_obra' current_obra.id %}">Cancelar</a>
-    </form>
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <h1 class="h5 mb-0">{% if object %}Editar Tarefa{% else %}Nova Tarefa{% endif %}</h1>
+          <small class="text-muted">Categoria: {{ current_categoria.nome }} · Obra: {{ current_obra.nome }}</small>
+        </div>
+        {% if object and current_obra.status != 'finalizada' %}
+          <a href="{% url 'obras:excluir_tarefa' object.id %}" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash"></i> Excluir
+          </a>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {{ form|crispy }}
+          <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary">Salvar</button>
+            <a class="btn btn-outline-secondary" href="{% url 'obras:detalhe_obra' current_obra.id %}">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
   {% endwith %}
 {% endblock %}

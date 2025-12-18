@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Excluir Categoria{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'obras:listar_obras' %}">Obras</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'obras:detalhe_obra' obra.id %}">{{ obra.nome }}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Excluir Categoria</li>
+    </ol>
+  </nav>
+
+  <div class="card border-danger shadow-sm">
+    <div class="card-header bg-danger text-white d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span class="fw-semibold">Confirmar exclusão de categoria</span>
+    </div>
+    <div class="card-body">
+      <p class="mb-2">
+        Você está prestes a excluir a categoria <strong>{{ object.nome }}</strong> da obra <strong>{{ obra.nome }}</strong>.
+      </p>
+
+      <ul class="mb-3">
+        <li><strong>Tarefas vinculadas:</strong> {{ tarefas_count }}</li>
+        <li><strong>Pendências vinculadas:</strong> {{ pendencias_count }}</li>
+        <li><strong>Inspeções vinculadas:</strong> {{ inspecoes_count }}</li>
+      </ul>
+
+      {% if tarefas_count %}
+        <div class="alert alert-danger" role="alert">
+          Esta categoria possui tarefas vinculadas. Por segurança, a exclusão está bloqueada até que as tarefas sejam removidas ou movidas para outra categoria.
+        </div>
+      {% elif pendencias_count or inspecoes_count %}
+        <div class="alert alert-warning" role="alert">
+          Existem registros vinculados a esta categoria. Ao excluir, pendências/inspeções continuarão existindo, mas ficarão sem categoria.
+        </div>
+      {% endif %}
+
+      <form method="post" class="d-flex gap-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" {% if tarefas_count %}disabled{% endif %}>
+          <i class="bi bi-trash"></i> Confirmar exclusão
+        </button>
+        <a href="{% url 'obras:detalhe_obra' obra.id %}" class="btn btn-outline-secondary">Cancelar</a>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+

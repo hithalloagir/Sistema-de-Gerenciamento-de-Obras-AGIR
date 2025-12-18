@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Obra, Categoria, Tarefa, Pendencia, SolucaoPendencia
+
+from .models import Categoria, Obra, ObraSnapshot, Pendencia, SolucaoPendencia, Tarefa
 
 
 class CategoriaInline(admin.TabularInline):
@@ -75,3 +76,12 @@ class PendenciaAdmin(admin.ModelAdmin):
         return (obj.descricao[:60] + "...") if len(obj.descricao) > 60 else obj.descricao
 
     descricao_curta.short_description = "Descrição"
+
+
+@admin.register(ObraSnapshot)
+class ObraSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("obra", "data", "percentual_real", "percentual_esperado")
+    list_filter = ("obra", "data")
+    search_fields = ("obra__nome",)
+    ordering = ("obra", "data")
+

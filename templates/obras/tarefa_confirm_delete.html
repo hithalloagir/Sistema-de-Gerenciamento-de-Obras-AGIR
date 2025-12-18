@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Excluir Tarefa{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'obras:listar_obras' %}">Obras</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'obras:detalhe_obra' obra.id %}">{{ obra.nome }}</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Excluir Tarefa</li>
+    </ol>
+  </nav>
+
+  <div class="card border-danger shadow-sm">
+    <div class="card-header bg-danger text-white d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span class="fw-semibold">Confirmar exclusão de tarefa</span>
+    </div>
+    <div class="card-body">
+      <p class="mb-2">
+        Você está prestes a excluir a tarefa <strong>{{ object.nome }}</strong> da categoria <strong>{{ categoria.nome }}</strong>.
+      </p>
+
+      <ul class="mb-3">
+        <li><strong>Pendências vinculadas:</strong> {{ pendencias_count }}</li>
+        <li><strong>Inspeções vinculadas:</strong> {{ inspecoes_count }}</li>
+      </ul>
+
+      {% if pendencias_count or inspecoes_count %}
+        <div class="alert alert-danger" role="alert">
+          Por segurança, a exclusão está bloqueada enquanto existirem pendências e/ou inspeções vinculadas a esta tarefa.
+        </div>
+      {% endif %}
+
+      <form method="post" class="d-flex gap-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" {% if pendencias_count or inspecoes_count %}disabled{% endif %}>
+          <i class="bi bi-trash"></i> Confirmar exclusão
+        </button>
+        <a href="{% url 'obras:detalhe_obra' obra.id %}" class="btn btn-outline-secondary">Cancelar</a>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+

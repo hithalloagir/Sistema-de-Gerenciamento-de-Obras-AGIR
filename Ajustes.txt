@@ -40,7 +40,7 @@ Para ajustar (Terça)
 - Retirar o Cadastro de "Custos" (x)
 - Mudar as roles para níveis (x)
 - Ajustar as permissões dos níveis (x)
-- Criação de usuário nível 1 para o nível 2 ()
+- Criação de usuário nível 1 para o nível 2 (x)
 - Ajustar toda a tela de visão geral (x)
 - Ser obrigatório clicar em capturar localização para salvar inspeção (x)
 - O backlog de pendencias vai ser baseado no nível do usuário, o ADM vê tudo e os outros níveis só vê os da sua obra (x)
@@ -53,7 +53,7 @@ Para ajustar na Quarta
 - Na tela inicial 
 	- Ter Progresso Real da obra e Progresso Esperado (X)
 - Deixar todo o projeto profissional, no quesito estrutura e código () 
-- Ajustar o gráfico de visão geral ()
+- Ajustar o gráfico de visão geral (x)
 - Fazer o Crud de criação de usuario dando permissão para o nivel 2 criar um nivel 1 e alocar o mesmo em uma obra (X)
-- Fazer o ajuste, onde um usuario pode estar em várias obras ()
+- Fazer o ajuste, onde um usuario pode estar em várias obras (x)
 

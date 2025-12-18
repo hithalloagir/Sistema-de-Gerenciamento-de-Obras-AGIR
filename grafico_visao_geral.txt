@@ -1,0 +1,81 @@
+A) Onde nasce os dados do gráfico
+    Template + JS do gráfico: templates/obras/visao_geral.html (line 41) (card “Progresso da obra”) e o JS inline em templates/obras/visao_geral.html (line 173) (faz new Chart(...)).
+    Como os arrays chegam no frontend: via template context, serializado com json_script:
+    templates/obras/visao_geral.html (line 79) → {{ overview_progress_payload|json_script:"overview-progress-data" }}
+    O JS lê isso em templates/obras/visao_geral.html (line 177) (document.getElementById('overview-progress-data') + JSON.parse(...)).
+    View/endpoint: rota Django obras:visao_geral em obras/urls.py (path visao-geral/), servida por ObraOverviewView em obras/views.py (line 99).
+    Backend que monta dates/real/expected: ObraOverviewView.get_context_data em obras/views.py (line 114) cria overview_progress_payload usando:
+    build_snapshot_timeline(...) em obras/services.py (line 199)
+    calculate_progress_milestones(...) em obras/utils.py (line 6)
+    Observação: existe chart_lines em obras/views.py (line 118) e templates/obras/visao_geral.html (line 78), mas não há JS lendo obras-data (parece legado/não usado pelo gráfico atual).
+
+B) Progresso Real (linha azul)
+    Fórmula usada hoje (no gráfico): o “real” do gráfico é uma série diária “step/hold”:
+    para cada dia do eixo X, usa o último valor conhecido de ObraSnapshot.percentual_real (carrega o último valor para frente até existir outro snapshot).
+    Onde está implementada (cálculo do valor do snapshot):
+    cálculo do percentual que vai para o snapshot: calculate_real_progress_for_snapshot em obras/services.py (line 159)
+    gravação do snapshot: upsert_obra_snapshot em obras/services.py (line 181) (preenche ObraSnapshot.percentual_real)
+    montagem da série diária (carregar último valor): build_snapshot_timeline em obras/services.py (line 199) (usa last_real e só atualiza quando existe snapshot no dia)
+    Models/campos que entram
+    Tarefa.percentual_concluido (conta tarefa “concluída” quando percentual_concluido=100)
+    Pendencia.status via relação Tarefa.pendencias (exclui tarefas com pendências aberta ou andamento)
+    relação Tarefa -> Categoria -> Obra (Tarefa.categoria e Categoria.obra)
+    Base exata usada
+    Não usa “inspeções por dia” como métrica de real; inspeções só podem criar snapshots (ver D).
+    Não é tarefas_concluidas/total por Tarefa.status para o gráfico (isso existe em outros lugares, mas não é o cálculo do snapshot).
+    Fórmula do snapshot (real):
+    total = count(Tarefa where categoria__obra=obra)
+    concluidas_sem_pendencias = count(Tarefa where categoria__obra=obra and percentual_concluido=100 and NOT pendencias.status in ["aberta","andamento"])
+    real = round(clamp((concluidas_sem_pendencias/total)*100, 0..100), 1)
+    Implementado em obras/services.py (lines 159-172)
+    Exemplo numérico (modelo)
+    total_tarefas = 10
+    concluidas_sem_pendencias = 4
+    real = (4/10)*100 = 40.0% (arredonda 1 casa)
+    Trechos relevantes:
+
+    obras/services.py (line 159)
+    concluidas_sem_pendencias = ... percentual_concluido=100 ... exclude(pendencias__status__in=["aberta","andamento"])
+    percentual = (concluidas_sem_pendencias / total) * 100
+    obras/services.py (line 219) (timeline)
+    if snap is not None: last_real = float(snap.percentual_real)
+    real.append(round(last_real, 1))
+
+C) Progresso Esperado (linha tracejada)
+    Fórmula usada hoje (baseline por tempo): linear por tempo entre Obra.data_inicio e Obra.data_fim_prevista:
+    expected = round(clamp((dias_passados / dias_totais) * 100, 0..100), 1)
+    Onde está implementada
+    calculate_expected_progress em obras/services.py (line 71)
+    Na série do gráfico: build_snapshot_timeline em obras/services.py (lines 225-230) (usa snapshot do dia se existir; senão recalcula para a data)
+    Campos usados
+    Obra.data_inicio
+    Obra.data_fim_prevista
+    Regras de borda (exatamente como está no código)
+    Sem datas (data_inicio ou data_fim_prevista ausente) → None (obras/services.py (lines 74-75))
+    Antes do início (reference_date < start) → 0.0 (obras/services.py (lines 79-80))
+    Após o fim (reference_date > end) → 100.0 (obras/services.py (lines 81-82))
+    dias_totais <= 0 → 100.0 se reference_date >= end, senão 0.0 (obras/services.py (lines 84-86))
+    Detalhe do cálculo (dias, clamp, arredondamento)
+    total_days = (end - start).days
+    days_passed = (reference_date - start).days
+    percentual = (days_passed / total_days) * 100
+    return round(_clamp_percentage(percentual), 1)
+    Tudo em obras/services.py (lines 84-90)
+
+D) Como o “histórico por data” é montado (eixo X e pontos diários)
+    Eixo X (labels/dates): intervalo diário contínuo em build_snapshot_timeline (obras/services.py (lines 205-231))
+    start_date = obra.data_inicio or snapshots[0].data
+    end_date = max(today, last_snapshot_date) (se end_date não for passado)
+    loop while current_date <= end_date: adiciona current_date.isoformat() em dates
+    Como cada ponto diário é calculado
+    Real (azul): last_real começa em 0.0 e só muda quando existe snapshot naquele dia; nos demais dias repete o último (obras/services.py (lines 217-224)).
+    Esperado (tracejado):
+    se houver snapshot no dia com percentual_esperado, usa ele (obras/services.py:225,229-230)
+    senão calcula com calculate_expected_progress(obra, current_date) (obras/services.py (lines 226-228))
+    De onde vêm os snapshots (o que “cria” pontos históricos)
+    ObraSnapshot model: obras/models.py (line 249)
+    Criados/atualizados por upsert_obra_snapshot (obras/services.py (line 181)) quando:
+    uma Tarefa vira 100% (signal) → obras/models.py (lines 282-290)
+    uma Pendencia muda status (signal) → obras/models.py (lines 301-306)
+    uma Inspecao é criada (post_save) usando reference_date=instance.data_inspecao → inspecoes/models.py (lines 122-126)
+    Se você me disser qual “print” com números você quer usar (ou mandar um print do gráfico/tela), eu fecho um exemplo completo com dias_totais/dias_passados e um dia específico do real/expected exatamente como a série monta.

@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 from obras.models import Obra, Categoria, Tarefa, Pendencia
 
@@ -115,3 +117,10 @@ class ItemInspecao(models.Model):
 
     def __str__(self):
         return f"{self.inspecao} - {self.ponto}"
+
+
+@receiver(post_save, sender=Inspecao)
+def inspecao_create_snapshot_on_finalize(sender, instance, created, **kwargs):
+    if created:
+        from obras.services import upsert_obra_snapshot
+        upsert_obra_snapshot(instance.obra, reference_date=instance.data_inspecao)

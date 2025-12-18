@@ -2,6 +2,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator
 from django.db import models
+from django.db.models.signals import post_save, pre_save
+from django.dispatch import receiver
 from django.db.models import Avg
 from django.utils import timezone
 
@@ -242,3 +244,61 @@ class AnexoObra(models.Model):
 
     def __str__(self):
         return f"Anexo {self.id} - {self.obra.nome}"
+
+
+class ObraSnapshot(models.Model):
+    obra = models.ForeignKey(Obra, on_delete=models.CASCADE, related_name="snapshots")
+    data = models.DateField()
+    percentual_real = models.DecimalField(
+        max_digits=5,
+        decimal_places=1,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    percentual_esperado = models.DecimalField(
+        max_digits=5,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+
+    class Meta:
+        unique_together = ("obra", "data")
+        ordering = ["data"]
+
+    def __str__(self):
+        return f"{self.obra} - {self.data:%Y-%m-%d}"
+
+
+@receiver(pre_save, sender=Tarefa)
+def tarefa_capture_previous_state(sender, instance, **kwargs):
+    if not instance.pk:
+        instance._previous_percentual_concluido = None
+        return
+    previous = sender.objects.filter(pk=instance.pk).values("percentual_concluido").first()
+    instance._previous_percentual_concluido = previous["percentual_concluido"] if previous else None
+
+
+@receiver(post_save, sender=Tarefa)
+def tarefa_upsert_snapshot_on_progress_change(sender, instance, created, **kwargs):
+    previous = getattr(instance, "_previous_percentual_concluido", None)
+    if created or previous is None or previous != instance.percentual_concluido:
+        from .services import upsert_obra_snapshot
+        upsert_obra_snapshot(instance.categoria.obra)
+
+
+@receiver(pre_save, sender=Pendencia)
+def pendencia_capture_previous_state(sender, instance, **kwargs):
+    if not instance.pk:
+        instance._previous_status = None
+        return
+    previous = sender.objects.filter(pk=instance.pk).values("status").first()
+    instance._previous_status = previous["status"] if previous else None
+
+
+@receiver(post_save, sender=Pendencia)
+def pendencia_create_snapshot_on_resolve(sender, instance, created, **kwargs):
+    previous = getattr(instance, "_previous_status", None)
+    if created or (previous is not None and previous != instance.status):
+        from .services import upsert_obra_snapshot
+        upsert_obra_snapshot(instance.obra)

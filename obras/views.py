@@ -2,7 +2,7 @@ import json
 from django.db import transaction
 from django.db.models import Count, Q
 from django.core.paginator import Paginator
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, View
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy, reverse
@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.core.exceptions import ValidationError
 
-from .models import Obra, Categoria, Tarefa, Pendencia, AnexoObra, SolucaoPendencia
+from .models import Obra, Categoria, Tarefa, Pendencia, AnexoObra, SolucaoPendencia, ObraSnapshot
 from .forms import (
     ObraForm,
     ObraCreateForm,
@@ -29,7 +29,9 @@ from .services import (
     generate_duplicate_name,
     get_last_accessible_obra,
     get_obras_progress_snapshot,
+    build_snapshot_timeline,
 )
+from .utils import calculate_progress_milestones
 from accounts.mixins import RoleRequiredMixin, level_required
 from accounts.models import UserProfile
 from accounts.utils import (
@@ -114,14 +116,13 @@ class ObraOverviewView(LoginRequiredMixin, ListView):
         hoje = timezone.now().date()
         obras_json = []
         chart_lines = []
-        for obra in context["obras"]:
-            stats = Tarefa.objects.filter(categoria__obra=obra).aggregate(
-                total=Count("id"),
-                concluidas=Count("id", filter=Q(status="concluida")),
-            )
-            total = stats.get("total") or 0
-            concl = stats.get("concluidas") or 0
-            obra.perc_concluido = round((concl / total) * 100, 1) if total else 0
+        obras = list(context["obras"])
+        context["obras"] = obras
+        progress_map = get_obras_progress_snapshot(obras)
+
+        for obra in obras:
+            progress = progress_map.get(obra.id, {})
+            obra.perc_concluido = progress.get("real", 0.0)
             obra.dias_restantes = (obra.data_fim_prevista - hoje).days if obra.data_fim_prevista else None
             obras_json.append({
                 "id": obra.id,
@@ -143,6 +144,30 @@ class ObraOverviewView(LoginRequiredMixin, ListView):
                 })
         context["obras_json"] = obras_json
         context["chart_lines"] = chart_lines
+
+        selected_obra_id = (self.request.GET.get("obra") or "").strip()
+        selected_obra = None
+        if selected_obra_id:
+            try:
+                selected_obra = next(o for o in obras if str(o.id) == selected_obra_id)
+            except StopIteration:
+                selected_obra = None
+        if selected_obra is None and obras:
+            selected_obra = obras[0]
+
+        overview_payload = {"obra": None, "series": {"dates": [], "real": [], "expected": []}, "milestones": {}}
+        if selected_obra is not None:
+            snapshots = ObraSnapshot.objects.filter(obra=selected_obra).order_by("data")
+            series = build_snapshot_timeline(selected_obra, snapshots)
+            milestones = calculate_progress_milestones(selected_obra, snapshots)
+            overview_payload = {
+                "obra": {"id": selected_obra.id, "nome": selected_obra.nome},
+                "series": series,
+                "milestones": milestones,
+            }
+
+        context["selected_obra"] = selected_obra
+        context["overview_progress_payload"] = overview_payload
         return context
 
 
@@ -321,11 +346,12 @@ class TarefaUpdateView(RoleRequiredMixin, UpdateView):
     template_name = "obras/tarefa_form.html"
     allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
 
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("categoria__obra")
+        return filter_queryset_by_user_obras(qs, self.request.user, obra_lookup="categoria__obra")
+
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()
-        denied = self.ensure_obra_access(self.object.categoria.obra)
-        if denied:
-            return denied
         if self.object.categoria.obra.status == "finalizada":
             return obra_read_only_redirect(request, self.object.categoria.obra)
         return super().dispatch(request, *args, **kwargs)
@@ -338,9 +364,137 @@ class TarefaUpdateView(RoleRequiredMixin, UpdateView):
         context["current_categoria"] = self.object.categoria
         return context
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Tarefa atualizada com sucesso.")
+        return response
+
     def get_success_url(self):
         # self.object é a instância da tarefa que foi editada
         return reverse_lazy("obras:detalhe_obra", kwargs={"pk": self.object.categoria.obra.pk})
+
+
+class CategoriaUpdateView(RoleRequiredMixin, UpdateView):
+    model = Categoria
+    form_class = CategoriaForm
+    template_name = "obras/categoria_form.html"
+    allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("obra")
+        return filter_queryset_by_user_obras(qs, self.request.user, obra_lookup="obra")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.object.obra.status == "finalizada":
+            return obra_read_only_redirect(request, self.object.obra)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["obra"] = self.object.obra
+        context["current_obra"] = self.object.obra
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Categoria atualizada com sucesso.")
+        return response
+
+    def get_success_url(self):
+        return reverse_lazy("obras:detalhe_obra", kwargs={"pk": self.object.obra.pk})
+
+
+class CategoriaDeleteView(RoleRequiredMixin, DeleteView):
+    model = Categoria
+    template_name = "obras/categoria_confirm_delete.html"
+    allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("obra")
+        return filter_queryset_by_user_obras(qs, self.request.user, obra_lookup="obra")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self._obra_pk = getattr(getattr(self.object, "obra", None), "pk", None)
+        if self.object.obra.status == "finalizada":
+            return obra_read_only_redirect(request, self.object.obra)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        obra_pk = getattr(self, "_obra_pk", None)
+        if obra_pk:
+            return reverse("obras:detalhe_obra", kwargs={"pk": obra_pk})
+        return reverse("obras:listar_obras")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        categoria = self.object
+        context["obra"] = categoria.obra
+        context["tarefas_count"] = categoria.tarefas.count()
+        context["pendencias_count"] = categoria.pendencias.count()
+        context["inspecoes_count"] = categoria.inspecoes.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.object.tarefas.exists():
+            messages.error(
+                request,
+                "Não foi possível excluir a categoria porque existem tarefas vinculadas. Exclua ou mova as tarefas antes de continuar.",
+            )
+            return redirect(self.get_success_url())
+
+        nome = self.object.nome
+        messages.success(request, f"Categoria '{nome}' excluída com sucesso.")
+        return super().post(request, *args, **kwargs)
+
+
+class TarefaDeleteView(RoleRequiredMixin, DeleteView):
+    model = Tarefa
+    template_name = "obras/tarefa_confirm_delete.html"
+    allowed_roles = [UserProfile.Level.ADMIN, UserProfile.Level.NIVEL2]
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("categoria__obra")
+        return filter_queryset_by_user_obras(qs, self.request.user, obra_lookup="categoria__obra")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self._obra_pk = getattr(getattr(getattr(self.object, "categoria", None), "obra", None), "pk", None)
+        if self.object.categoria.obra.status == "finalizada":
+            return obra_read_only_redirect(request, self.object.categoria.obra)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        obra_pk = getattr(self, "_obra_pk", None)
+        if obra_pk:
+            return reverse("obras:detalhe_obra", kwargs={"pk": obra_pk})
+        return reverse("obras:listar_obras")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        tarefa = self.object
+        context["obra"] = tarefa.categoria.obra
+        context["categoria"] = tarefa.categoria
+        context["pendencias_count"] = tarefa.pendencias.count()
+        context["inspecoes_count"] = tarefa.inspecoes.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        pendencias_count = self.object.pendencias.count()
+        inspecoes_count = self.object.inspecoes.count()
+        if pendencias_count or inspecoes_count:
+            messages.error(
+                request,
+                "Não foi possível excluir a tarefa porque existem registros vinculados (pendências e/ou inspeções). Remova esses vínculos antes de excluir.",
+            )
+            return redirect(self.get_success_url())
+
+        nome = self.object.nome
+        messages.success(request, f"Tarefa '{nome}' excluída com sucesso.")
+        return super().post(request, *args, **kwargs)
 
 
 @login_required
@@ -486,7 +640,8 @@ class ObraDetailView(LoginRequiredMixin, DetailView):
         concluidas = stats.get("concluidas", 0)
         atrasadas = stats.get("atrasadas", 0)
 
-        percentual_concluido = (concluidas / total_tarefas) * 100 if total_tarefas > 0 else 0
+        progress = get_obras_progress_snapshot([obra]).get(obra.id, {})
+        percentual_concluido = progress.get("real", 0.0)
 
         inspecoes_qs = obra.inspecoes.select_related("usuario", "categoria", "tarefa").order_by(
             "-data_inspecao", "-id"
@@ -559,9 +714,7 @@ class ObraReportView(LoginRequiredMixin, DetailView):
         )
         total_tarefas = tarefas_stats.get("total") or 0
         concluidas = tarefas_stats.get("concluidas") or 0
-        progresso_real = (
-            round((concluidas / total_tarefas) * 100, 1) if total_tarefas else 0
-        )
+        progresso_real = get_obras_progress_snapshot([obra]).get(obra.id, {}).get("real", 0.0)
         progresso_esperado = self._calc_progresso_esperado(obra)
 
         pendencias = (
