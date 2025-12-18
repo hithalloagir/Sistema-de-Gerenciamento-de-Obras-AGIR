@@ -1,6 +1,7 @@
 from typing import Iterable, Optional
 
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 
 from .models import UserProfile, ObraAlocacao
@@ -61,3 +62,20 @@ def user_has_obra_access(user, obra) -> bool:
     if is_admin(user):
         return True
     return ObraAlocacao.objects.filter(obra=obra, usuario=user).exists()
+
+
+def manageable_users_queryset(user):
+    User = get_user_model()
+    if not getattr(user, "is_authenticated", False):
+        return User.objects.none()
+
+    level = get_user_level(user)
+    qs = User.objects.filter(profile__isnull=False).select_related("profile")
+
+    if level == UserProfile.Level.ADMIN:
+        return qs.exclude(pk=user.pk).exclude(profile__role=UserProfile.Level.ADMIN)
+
+    if level == UserProfile.Level.NIVEL2:
+        return qs.exclude(pk=user.pk).filter(profile__role=UserProfile.Level.NIVEL1)
+
+    return User.objects.none()

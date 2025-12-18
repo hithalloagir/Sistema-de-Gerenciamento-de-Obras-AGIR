@@ -1,23 +1,24 @@
 document.addEventListener('DOMContentLoaded', function () {
-  console.log('[inspecao_form] script carregado');
-  console.log('[inspecao_form] origin:', window.location.origin);
-
+  const form = document.getElementById('inspecao-form');
   const latInput = document.getElementById('id_latitude');
   const lngInput = document.getElementById('id_longitude');
+
   const errCodeInput = document.getElementById('id_location_error_code');
   const errMessageInput = document.getElementById('id_location_error_message');
   const errReasonInput = document.getElementById('id_location_error_reason');
-  const locationAlert = document.getElementById('location-alert');
-  const form = document.getElementById('inspecao-form');
 
-  if (!form || !latInput || !lngInput) {
-    console.log('[inspecao_form] form/inputs não encontrados; abortando', {
-      hasForm: !!form,
-      hasLat: !!latInput,
-      hasLng: !!lngInput,
-    });
-    return;
-  }
+  const locationAlert = document.getElementById('location-alert');
+  const statusEl = document.getElementById('location-status');
+  const coordsEl = document.getElementById('location-coords');
+  const captureBtn = document.getElementById('btn-capture-location');
+  const clearBtn = document.getElementById('btn-clear-location');
+  const spinnerEl = document.getElementById('location-spinner');
+  const captureBtnText = document.getElementById('location-btn-text');
+
+  if (!form || !latInput || !lngInput) return;
+
+  let requestInFlight = false;
+  let allowSubmitWithoutGeo = false;
 
   const clearErrorMeta = () => {
     if (errCodeInput) errCodeInput.value = '';
@@ -25,12 +26,23 @@ document.addEventListener('DOMContentLoaded', function () {
     if (errReasonInput) errReasonInput.value = '';
   };
 
-  const showLocationMessage = (message, type = 'warning') => {
+  const setBusy = (busy) => {
+    if (spinnerEl) spinnerEl.classList.toggle('d-none', !busy);
+    if (captureBtn) captureBtn.disabled = !!busy;
+    if (captureBtnText) captureBtnText.textContent = busy ? 'Capturando…' : 'Capturar';
+  };
+
+  const setStatus = (message) => {
+    if (!statusEl) return;
+    statusEl.textContent = message || '';
+  };
+
+  const showAlert = (message, type = 'warning') => {
     if (!locationAlert) {
-      alert(message);
+      if (message) alert(message);
       return;
     }
-    locationAlert.textContent = message;
+    locationAlert.textContent = message || '';
     locationAlert.classList.remove(
       'd-none',
       'alert-warning',
@@ -40,22 +52,53 @@ document.addEventListener('DOMContentLoaded', function () {
     locationAlert.classList.add(`alert-${type}`);
   };
 
-  const hideLocationMessage = () => {
-    if (locationAlert) {
-      locationAlert.classList.add('d-none');
-    }
+  const hideAlert = () => {
+    if (locationAlert) locationAlert.classList.add('d-none');
   };
 
   const isLikelySecureForGeolocation = () => {
     const host = window.location.hostname;
-    const isLocalhost =
-      host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
     return window.isSecureContext || isLocalhost;
   };
 
   const getHighAccuracy = () => {
     const raw = (form.dataset.geoHighAccuracy || '').toLowerCase().trim();
     return raw === '1' || raw === 'true' || raw === 'yes';
+  };
+
+  const hasCoords = () => !!(latInput.value && lngInput.value);
+
+  const writeCoords = (lat, lng, accuracy) => {
+    const latNum = typeof lat === 'number' ? lat : Number(lat);
+    const lngNum = typeof lng === 'number' ? lng : Number(lng);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return false;
+
+    latInput.value = latNum.toFixed(6);
+    lngInput.value = lngNum.toFixed(6);
+
+    if (coordsEl) {
+      const parts = [`Lat: ${latNum.toFixed(6)}`, `Lng: ${lngNum.toFixed(6)}`];
+      const accNum = typeof accuracy === 'number' ? accuracy : Number(accuracy);
+      if (Number.isFinite(accNum) && accNum > 0) parts.push(`±${Math.round(accNum)}m`);
+      coordsEl.textContent = parts.join(' • ');
+      coordsEl.classList.remove('d-none');
+    }
+
+    if (clearBtn) clearBtn.classList.remove('d-none');
+    setStatus('Coordenadas registradas.');
+    return true;
+  };
+
+  const clearCoords = () => {
+    latInput.value = '';
+    lngInput.value = '';
+    if (coordsEl) {
+      coordsEl.textContent = '';
+      coordsEl.classList.add('d-none');
+    }
+    if (clearBtn) clearBtn.classList.add('d-none');
+    setStatus('Ao salvar, tentaremos registrar as coordenadas desta inspeção.');
   };
 
   const buildErrorReason = (error) => {
@@ -66,115 +109,120 @@ document.addEventListener('DOMContentLoaded', function () {
     if (code === 2) return 'Localização indisponível';
     if (code === 3) return 'Tempo excedido';
     if (message) return message;
-    return 'Erro desconhecido';
+    return 'Erro ao obter localização';
   };
 
-  const logDebugState = (eventName, extra = {}) => {
-    const state = {
-      origin: window.location.origin,
-      hostname: window.location.hostname,
-      isSecureContext: window.isSecureContext,
-      geolocationExists: !!navigator.geolocation,
-      likelySecure: isLikelySecureForGeolocation(),
-      ...extra,
-    };
-    console.log(`[inspecao_form] ${eventName}`, state);
-  };
-
-  const requestLocationThenSubmit = (targetForm, trigger = 'unknown') => {
+  const requestLocation = () => {
     clearErrorMeta();
-    logDebugState('requestLocationThenSubmit()', { trigger });
 
     if (!navigator.geolocation) {
-      const reason = 'Geolocation não suportado';
+      const reason = 'Geolocalização não suportada pelo navegador';
       if (errReasonInput) errReasonInput.value = reason;
-      showLocationMessage(`${reason}. A inspeção será salva sem coordenadas.`, 'warning');
-      targetForm.submit();
-      return;
+      return Promise.reject(new Error(reason));
     }
 
     if (!isLikelySecureForGeolocation()) {
-      showLocationMessage(
-        'Seu navegador pode bloquear geolocalização em HTTP. Se não aparecer o popup, teste http://localhost:8000 (em vez de 127.0.0.1) ou use HTTPS. Vou tentar solicitar mesmo assim; se falhar, a inspeção será salva sem coordenadas.',
-        'warning'
-      );
+      setStatus('Dica: use HTTPS ou http://localhost para permitir geolocalização.');
     }
 
     const geoOptions = {
-      enableHighAccuracy: getHighAccuracy(), // default false
+      enableHighAccuracy: getHighAccuracy(),
       timeout: 15000,
       maximumAge: 60000,
     };
 
-    showLocationMessage('Solicitando permissão de localização...', 'warning');
-    logDebugState('antes getCurrentPosition', { geoOptions });
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, geoOptions);
+    });
+  };
+
+  const captureLocation = async ({ submitAfter } = { submitAfter: false }) => {
+    if (requestInFlight) return;
+    requestInFlight = true;
+
+    setBusy(true);
+    hideAlert();
+    setStatus('Solicitando localização…');
 
     try {
-      navigator.geolocation.getCurrentPosition(
-        function (position) {
-          logDebugState('sucesso getCurrentPosition', {
-            latitude: position?.coords?.latitude,
-            longitude: position?.coords?.longitude,
-            accuracy: position?.coords?.accuracy,
-          });
-          latInput.value = position.coords.latitude;
-          lngInput.value = position.coords.longitude;
-          hideLocationMessage();
-          targetForm.submit();
-        },
-        function (error) {
-          const reason = buildErrorReason(error);
-          logDebugState('erro getCurrentPosition', {
-            errorCode: error && typeof error.code === 'number' ? error.code : null,
-            errorMessage: error && error.message ? String(error.message) : null,
-            reason,
-          });
-
-          latInput.value = '';
-          lngInput.value = '';
-          if (errCodeInput && error && typeof error.code === 'number') {
-            errCodeInput.value = String(error.code);
-          }
-          if (errMessageInput && error && error.message) {
-            errMessageInput.value = String(error.message);
-          }
-          if (errReasonInput) {
-            errReasonInput.value = reason;
-          }
-
-          showLocationMessage(
-            `${reason}. A inspeção será salva sem coordenadas.`,
-            'warning'
-          );
-
-          setTimeout(() => targetForm.submit(), 50);
-        },
-        geoOptions
+      const position = await requestLocation();
+      const ok = writeCoords(
+        position.coords.latitude,
+        position.coords.longitude,
+        position.coords.accuracy
       );
-    } catch (err) {
-      logDebugState('exceção getCurrentPosition', { err: String(err) });
-      if (errReasonInput) errReasonInput.value = 'Erro ao solicitar geolocalização';
-      showLocationMessage(
-        'Erro ao solicitar geolocalização. A inspeção será salva sem coordenadas.',
-        'warning'
-      );
-      targetForm.submit();
+      if (!ok) throw new Error('Coordenadas inválidas');
+
+      hideAlert();
+      if (submitAfter) {
+        allowSubmitWithoutGeo = true;
+        form.submit();
+      }
+    } catch (error) {
+      const reason = buildErrorReason(error);
+
+      if (errCodeInput && error && typeof error.code === 'number') {
+        errCodeInput.value = String(error.code);
+      }
+      if (errMessageInput && error && error.message) {
+        errMessageInput.value = String(error.message);
+      }
+      if (errReasonInput) errReasonInput.value = reason;
+
+      clearCoords();
+      showAlert(reason, 'warning');
+      setStatus('Salvamento seguirá sem coordenadas.');
+
+      if (submitAfter) {
+        allowSubmitWithoutGeo = true;
+        form.submit();
+      }
+    } finally {
+      requestInFlight = false;
+      setBusy(false);
     }
   };
 
   form.addEventListener('submit', function (event) {
-    logDebugState('submit interceptado', {
-      trigger: 'submit',
-      latPreenchida: !!latInput.value,
-      lngPreenchida: !!lngInput.value,
-    });
-
-    if (latInput.value && lngInput.value) {
-      hideLocationMessage();
+    if (allowSubmitWithoutGeo) return;
+    if (hasCoords()) {
+      hideAlert();
       return;
     }
 
     event.preventDefault();
-    requestLocationThenSubmit(form, 'submit');
+    captureLocation({ submitAfter: true });
   });
+
+  if (captureBtn) {
+    captureBtn.addEventListener('click', function () {
+      captureLocation({ submitAfter: false });
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      clearErrorMeta();
+      hideAlert();
+      clearCoords();
+    });
+  }
+
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions
+      .query({ name: 'geolocation' })
+      .then((status) => {
+        if (status.state === 'denied') {
+          setStatus('Permissão de localização bloqueada no navegador.');
+        }
+      })
+      .catch(() => {});
+  }
+
+  if (hasCoords()) {
+    writeCoords(Number(latInput.value), Number(lngInput.value));
+  } else {
+    clearCoords();
+  }
 });
+

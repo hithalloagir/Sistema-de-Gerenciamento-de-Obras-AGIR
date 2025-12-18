@@ -107,13 +107,30 @@
 {% if inspecao.latitude and inspecao.longitude %}
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <span>Localização da inspeção</span>
-    <small class="text-muted">Lat: {{ inspecao.latitude|floatformat:6 }} / Lng: {{ inspecao.longitude|floatformat:6 }}</small>
+    <div class="d-flex flex-column">
+      <span>Localização da inspeção</span>
+      <small class="text-muted" id="inspection-coords">
+        Lat: {{ inspecao.latitude|floatformat:6 }} / Lng: {{ inspecao.longitude|floatformat:6 }}
+      </small>
+    </div>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Ações de localização">
+      <a
+        class="btn btn-outline-primary"
+        href="https://www.google.com/maps?q={{ inspecao.latitude|unlocalize }},{{ inspecao.longitude|unlocalize }}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <i class="bi bi-geo-alt-fill"></i> Google Maps
+      </a>
+      <button type="button" class="btn btn-outline-secondary" id="btn-copy-coords">
+        <i class="bi bi-clipboard"></i> Copiar
+      </button>
+    </div>
   </div>
   <div class="card-body">
     <div id="inspection-map"></div>
     <p class="small text-muted mt-2 mb-0">
-      Arraste ou aproxime para explorar o entorno. O marcador indica o ponto registrado.
+      Clique no mapa para ativar o zoom do mouse. O marcador indica o ponto registrado.
     </p>
   </div>
 </div>
@@ -158,6 +175,8 @@
       document.addEventListener("DOMContentLoaded", function () {
         var lat = parseFloat("{{ inspecao.latitude|unlocalize }}");
         var lng = parseFloat("{{ inspecao.longitude|unlocalize }}");
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
         var map = L.map("inspection-map", {
           scrollWheelZoom: false,
           zoomControl: true,
@@ -168,11 +187,33 @@
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> colaboradores'
         }).addTo(map);
 
-        var gmapsUrl = "https://www.google.com/maps?q=" + lat + "," + lng;
-        var popupContent = "{{ inspecao.obra.nome|escapejs }}<br><small>Lat: " + lat.toFixed(6) + " / Lng: " + lng.toFixed(6) + "</small>" +
-          '<div class="mt-2"><a class="btn btn-sm btn-primary" href="' + gmapsUrl + '" target="_blank" rel="noopener noreferrer">' +
-          '<i class="bi bi-geo-alt-fill"></i> Abrir no Google Maps</a></div>';
+        L.control.scale({ imperial: false }).addTo(map);
+
+        var popupContent =
+          "{{ inspecao.obra.nome|escapejs }}" +
+          '<br><small>Lat: ' + lat.toFixed(6) + " / Lng: " + lng.toFixed(6) + "</small>";
         L.marker([lat, lng]).addTo(map).bindPopup(popupContent);
+
+        map.on("click", function () {
+          map.scrollWheelZoom.enable();
+        });
+
+        var copyBtn = document.getElementById("btn-copy-coords");
+        if (copyBtn) {
+          copyBtn.addEventListener("click", async function () {
+            var text = lat.toFixed(6) + ", " + lng.toFixed(6);
+            try {
+              await navigator.clipboard.writeText(text);
+              copyBtn.blur();
+              copyBtn.innerText = "Copiado";
+              setTimeout(function () {
+                copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copiar';
+              }, 1200);
+            } catch (e) {
+              window.prompt("Copie as coordenadas:", text);
+            }
+          });
+        }
 
         setTimeout(function () {
           map.invalidateSize();

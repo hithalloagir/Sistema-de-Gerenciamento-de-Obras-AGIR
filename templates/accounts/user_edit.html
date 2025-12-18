@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Editar usuário{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-4 gap-3">
+        <div>
+            <h1 class="h3 mb-1">Editar usuário</h1>
+            <p class="text-muted mb-0">Ajuste o nível, senha e obras liberadas.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'accounts:manage_users' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Voltar
+            </a>
+            <a href="{% url 'accounts:delete_user' target_user.id %}" class="btn btn-outline-danger">
+                <i class="bi bi-trash me-2"></i>Excluir
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">Nome de usuário</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                            <div class="text-danger small">{{ form.username.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.role.id_for_label }}" class="form-label">Nível</label>
+                        {{ form.role }}
+                        {% if form.role.errors %}
+                            <div class="text-danger small">{{ form.role.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.password1.id_for_label }}" class="form-label">Nova senha</label>
+                        {{ form.password1 }}
+                        {% if form.password1.errors %}
+                            <div class="text-danger small">{{ form.password1.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.password2.id_for_label }}" class="form-label">Confirme a nova senha</label>
+                        {{ form.password2 }}
+                        {% if form.password2.errors %}
+                            <div class="text-danger small">{{ form.password2.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label d-flex justify-content-between">
+                            Obras alocadas
+                            <span class="text-muted small">Opcional</span>
+                        </label>
+                        {% if form.obras.field.queryset %}
+                            <div class="border rounded p-3 overflow-auto" style="max-height: 320px;">
+                                {% for checkbox in form.obras %}
+                                    <div class="form-check mb-2">
+                                        {{ checkbox.tag }}
+                                        <label class="form-check-label ms-2" for="{{ checkbox.id_for_label }}">
+                                            {{ checkbox.choice_label }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-light border mb-0">
+                                Nenhuma obra disponível para alocação no seu escopo.
+                            </div>
+                        {% endif %}
+                        {% if form.obras.errors %}
+                            <div class="text-danger small mt-1">{{ form.obras.errors|striptags }}</div>
+                        {% endif %}
+                        {% if form.obras.help_text %}
+                            <div class="form-text">{{ form.obras.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-save me-2"></i>Salvar alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

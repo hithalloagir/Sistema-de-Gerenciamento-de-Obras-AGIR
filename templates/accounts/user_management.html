@@ -123,6 +123,7 @@
                                         <th>Usuário</th>
                                         <th>Nível</th>
                                         <th>Obras liberadas</th>
+                                        <th class="text-end">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -152,6 +153,20 @@
                                                         <span class="text-muted small">Sem alocação</span>
                                                     {% endif %}
                                                 {% endwith %}
+                                            </td>
+                                            <td class="text-end">
+                                                {% if user.id in manageable_user_ids %}
+                                                    <div class="btn-group btn-group-sm" role="group" aria-label="Ações">
+                                                        <a class="btn btn-outline-primary" href="{% url 'accounts:edit_user' user.id %}" title="Editar">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </a>
+                                                        <a class="btn btn-outline-danger" href="{% url 'accounts:delete_user' user.id %}" title="Excluir">
+                                                            <i class="bi bi-trash"></i>
+                                                        </a>
+                                                    </div>
+                                                {% else %}
+                                                    <span class="text-muted small">—</span>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                     {% endfor %}

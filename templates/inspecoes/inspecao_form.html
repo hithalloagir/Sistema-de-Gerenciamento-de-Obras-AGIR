@@ -89,7 +89,31 @@
       <input type="hidden" name="location_error_code" id="id_location_error_code">
       <input type="hidden" name="location_error_message" id="id_location_error_message">
       <input type="hidden" name="location_error_reason" id="id_location_error_reason">
-      <div class="alert alert-warning d-none mt-2" role="alert" id="location-alert"></div>
+      <div class="col-12">
+        <div class="border rounded bg-body p-3" id="location-panel">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div class="me-2">
+              <div class="fw-semibold">
+                <i class="bi bi-geo-alt"></i> Localização
+              </div>
+              <div class="text-muted small" id="location-status">
+                Ao salvar, tentaremos registrar as coordenadas desta inspeção.
+              </div>
+              <div class="small mt-1 d-none" id="location-coords"></div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <button type="button" class="btn btn-sm btn-outline-primary" id="btn-capture-location">
+                <span class="spinner-border spinner-border-sm d-none" aria-hidden="true" id="location-spinner"></span>
+                <span class="ms-1" id="location-btn-text">Capturar</span>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="btn-clear-location">
+                Remover
+              </button>
+            </div>
+          </div>
+          <div class="alert alert-warning d-none mt-2 mb-0" role="alert" id="location-alert"></div>
+        </div>
+      </div>
 
       <div class="d-flex gap-2 mt-3">
         <button type="submit" class="btn btn-primary">Salvar inspeção</button>

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Excluir usuário{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-4 gap-3">
+        <div>
+            <h1 class="h3 mb-1">Excluir usuário</h1>
+            <p class="text-muted mb-0">Esta ação não pode ser desfeita.</p>
+        </div>
+        <a href="{% url 'accounts:manage_users' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Voltar
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <div class="alert alert-danger">
+                Confirma a exclusão do usuário <strong>{{ target_user.username }}</strong>?
+            </div>
+
+            <div class="mb-3">
+                <div class="text-muted small mb-2">Obras liberadas atualmente</div>
+                {% with obras=target_user.obras_alocadas.all %}
+                    {% if obras %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for alocacao in obras %}
+                                <span class="badge bg-light text-dark border">{{ alocacao.obra.nome }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <span class="text-muted small">Sem alocação</span>
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            <form method="post" class="d-flex justify-content-end gap-2">
+                {% csrf_token %}
+                <a href="{% url 'accounts:manage_users' %}" class="btn btn-outline-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash me-2"></i>Excluir usuário
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
