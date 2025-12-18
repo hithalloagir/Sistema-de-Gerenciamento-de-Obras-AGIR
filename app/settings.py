@@ -45,7 +45,14 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-insecure-key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if not DEBUG else ['*']
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    _raw_allowed_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
+    ALLOWED_HOSTS = [h.strip() for h in _raw_allowed_hosts.split(",") if h.strip()]
+
+if not DEBUG and SECRET_KEY == "dev-insecure-key":
+    raise ValueError("Set DJANGO_SECRET_KEY for production (DJANGO_DEBUG=False).")
 
 
 # Application definition
@@ -72,6 +79,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -199,9 +207,10 @@ USE_TZ = False
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -239,7 +248,7 @@ if CLOUDINARY_ENABLED:
                     "BACKEND": "app.storage_backends.CloudinaryMediaStorage",
                 },
                 "staticfiles": {
-                    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+                    "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
                 },
             }
         else:
@@ -252,3 +261,39 @@ LOGIN_URL = "login"
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+# Production security (Render/proxies)
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
+
+    SECURE_SSL_REDIRECT = (
+        os.getenv("DJANGO_SECURE_SSL_REDIRECT", "True").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_SECURE_HSTS_SECONDS", "0"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+        os.getenv("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "False").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
+    SECURE_HSTS_PRELOAD = (
+        os.getenv("DJANGO_SECURE_HSTS_PRELOAD", "False").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
+
+    _csrf_trusted = []
+    _render_external_url = (os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
+    if _render_external_url:
+        _csrf_trusted.append(_render_external_url)
+
+    _csrf_trusted_raw = os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "")
+    for origin in _csrf_trusted_raw.split(","):
+        origin = origin.strip().rstrip("/")
+        if origin:
+            _csrf_trusted.append(origin)
+
+    if _csrf_trusted:
+        CSRF_TRUSTED_ORIGINS = sorted(set(_csrf_trusted))

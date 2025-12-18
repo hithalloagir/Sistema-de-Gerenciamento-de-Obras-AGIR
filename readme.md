@@ -38,3 +38,32 @@ Para salvar e servir uploads (imagens/arquivos) via Cloudinary, configure no `.e
 - `CLOUDINARY_CLOUD_NAME=...`
 - `CLOUDINARY_API_KEY=...`
 - `CLOUDINARY_API_SECRET=...`
+
+## Deploy (Render + Neon + Cloudinary)
+
+### 1) Neon (PostgreSQL)
+
+- Crie um banco no Neon e copie a connection string.
+- No Render (ou no ambiente), configure `DATABASE_URL` (recomendado) com SSL, por exemplo:
+  - `postgresql://usuario:senha@host:5432/nome_do_banco?sslmode=require`
+
+### 2) Render (Django)
+
+- Opção A (recomendado): use o blueprint `render.yaml` deste repositório.
+- Opção B: crie um **Web Service** no Render apontando para o repositório e configure:
+  - **Build Command**: `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate`
+  - **Start Command**: `gunicorn app.wsgi:application`
+
+### 3) Variáveis de ambiente no Render
+
+- `DJANGO_DEBUG=False`
+- `DJANGO_SECRET_KEY=...` (obrigatório em produção)
+- `DJANGO_ALLOWED_HOSTS=seu-app.onrender.com,seu-dominio.com`
+- `DATABASE_URL=...` (Neon, com `sslmode=require`)
+- Cloudinary:
+  - `CLOUDINARY_ENABLED=true`
+  - `CLOUDINARY_CLOUD_NAME=...`
+  - `CLOUDINARY_API_KEY=...`
+  - `CLOUDINARY_API_SECRET=...`
+- Se você receber erro de CSRF no admin/login, configure:
+  - `DJANGO_CSRF_TRUSTED_ORIGINS=https://seu-app.onrender.com`
