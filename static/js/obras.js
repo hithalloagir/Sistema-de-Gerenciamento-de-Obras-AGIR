@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const taskId = this.dataset.taskId;
       const categoryId = this.dataset.categoryId;
       const isLockedForLevel1 = this.dataset.lockLevel1 === 'true';
-      const lockMessage = this.dataset.lockMessage || 'Tarefa bloqueada. Solicite apoio de um usu·rio NÌvel 2.';
+      const lockMessage = this.dataset.lockMessage || 'Tarefa bloqueada. Solicite apoio de um usu√°rio N√≠vel 2.';
 
       if (currentUserLevel === 'nivel1' && isLockedForLevel1) {
         alert(lockMessage);
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const newProgress = input.value;
         if (newProgress == 100) {
-          if (!confirm('Confirma a finalizaÁ„o desta tarefa? A data de conclus„o ser· registrada.')) {
+          if (!confirm('Confirma a finaliza√ß√£o desta tarefa? A data de conclus√£o ser√° registrada.')) {
             cleanup();
             return;
           }
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
               }
               const dateWrapper = document.getElementById(`task-date-wrapper-${taskId}`);
               if (dateWrapper && data.task_real_end_date) {
-                dateWrapper.innerHTML = `<strong>ConcluÌdo em: ${data.task_real_end_date}</strong>`;
+                dateWrapper.innerHTML = `<strong>Conclu√≠do em: ${data.task_real_end_date}</strong>`;
               }
             }
           } else if (data.message) {
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         })
         .catch(() => {
-          alert('N„o foi possÌvel atualizar a tarefa.');
+          alert('N√£o foi poss√≠vel atualizar a tarefa.');
         })
         .finally(() => {
           cleanup();
