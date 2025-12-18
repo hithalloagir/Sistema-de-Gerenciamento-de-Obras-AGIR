@@ -130,6 +130,18 @@ class PendenciaForm(forms.ModelForm):
             return
 
 
+class PendenciaResolveForm(forms.Form):
+    solucao = forms.CharField(
+        label="Solução adotada",
+        widget=forms.Textarea(attrs={"rows": 4}),
+        required=True,
+    )
+    imagem_resolucao = forms.ImageField(
+        label="Imagem da solução (opcional)",
+        required=False,
+    )
+
+
 # Formset para adicionar categorias ao criar uma obra
 CategoriaInlineFormSet = forms.inlineformset_factory(Obra, Categoria, form=CategoriaForm, extra=2, can_delete=False)
 

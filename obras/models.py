@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
@@ -47,6 +47,20 @@ def validate_image_file(image):
         raise ValidationError("Envie arquivos JPG, PNG ou WEBP.")
     if image.size > max_size:
         raise ValidationError("O tamanho da imagem não pode ultrapassar 5MB.")
+
+
+def validate_image_extension_optional(image):
+    if not image:
+        return
+
+    name = getattr(image, "name", "") or ""
+    base_name = name.rsplit("/", 1)[-1]
+    if "." not in base_name:
+        return
+
+    ext = base_name.rsplit(".", 1)[-1].lower()
+    if ext not in {"jpg", "jpeg", "png", "webp"}:
+        raise ValidationError("A extensao do arquivo nao e permitida. Use: jpg, jpeg, png ou webp.")
 
 
 class Categoria(models.Model):
@@ -180,7 +194,7 @@ class Pendencia(models.Model):
         null=True,
         blank=True,
         validators=[
-            FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),
+            validate_image_extension_optional,
             validate_image_file,
         ],
     )
@@ -196,7 +210,7 @@ class Pendencia(models.Model):
         null=True,
         blank=True,
         validators=[
-            FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png", "webp"]),
+            validate_image_extension_optional,
             validate_image_file,
         ],
     )

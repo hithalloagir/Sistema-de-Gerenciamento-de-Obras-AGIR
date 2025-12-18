@@ -25,4 +25,5 @@ urlpatterns = [
     path("pendencias/", views.PendenciaListView.as_view(), name="listar_pendencias"),
     path("pendencias/<int:pk>/", views.PendenciaDetailView.as_view(), name="detalhe_pendencia"),
     path("pendencias/<int:pk>/atualizar/", views.PendenciaUpdateStatusView.as_view(), name="atualizar_pendencia"),
+    path("pendencias/<int:pk>/resolver/", views.PendenciaResolveView.as_view(), name="resolver_pendencia"),
 ]

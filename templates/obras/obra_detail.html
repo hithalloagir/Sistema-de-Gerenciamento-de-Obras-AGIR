@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static %}
 {% block title %}{{ obra.nome }}{% endblock %}
 
@@ -28,7 +28,7 @@
         {% endif %}
       {% else %}
         <span class="badge bg-success d-flex align-items-center gap-1">
-          <i class="bi bi-check2-circle"></i> Concluída
+          <i class="bi bi-check2-circle"></i> Concluí­da
         </span>
       {% endif %}
       {% if can_manage_obra %}
@@ -57,8 +57,8 @@
     <div class="row g-3">
       <div class="col-md-6">
         <p><strong>Status:</strong> {{ obra.get_status_display }}</p>
-        <p><strong>Cliente:</strong> {{ obra.cliente|default:"—" }}</p>
-        <p><strong>Endereço:</strong> {{ obra.endereco|default:"—" }}</p>
+        <p><strong>Cliente:</strong> {{ obra.cliente|default:"-" }}</p>
+        <p><strong>Endereço:</strong> {{ obra.endereco|default:"-" }}</p>
       </div>
       <div class="col-md-6">
         <p><strong>Prazo final:</strong> {{ obra.data_fim_prevista|date:"d/m/Y" }}</p>
@@ -94,7 +94,7 @@
   <div class="col-md-4">
     <div class="card h-100">
       <div class="card-body">
-        <p class="text-muted mb-1">Concluídas</p>
+        <p class="text-muted mb-1">Concluí­das</p>
         <h4 class="mb-0 text-success">{{ stats_resumo.concluidas }}</h4>
         <small>Entregues</small>
       </div>
@@ -115,7 +115,7 @@
 <div class="card mb-4" id="pendencias">
   <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
-      <p class="text-muted mb-1">Pendências da obra</p>
+      <p class="text-muted mb-1">Pendêcias da obra</p>
       <h3 class="h5 mb-0">Pendências</h3>
     </div>
     {% if obra_status != 'finalizada' and can_manage_pendencias %}
@@ -197,7 +197,7 @@
                           <button type="submit" class="btn btn-sm btn-outline-primary">Em andamento</button>
                         </form>
                       {% endif %}
-                      <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#resolverPendenciaModal" data-update-url="{% url 'obras:atualizar_pendencia' pendencia.id %}" data-descricao="{{ pendencia.descricao|escapejs }}">
+                      <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#resolverPendenciaModal-{{ pendencia.id }}">
                         Resolver
                       </button>
                     {% elif pendencia.status == 'resolvida' %}
@@ -226,7 +226,7 @@
     </div>
     <div class="d-flex gap-2">
       {% if obra_status != 'finalizada' and can_add_inspecao %}
-        <a class="btn btn-sm btn-success" href="{% url 'inspecoes:nova_inspecao' obra.id %}"><i class="bi bi-clipboard-plus"></i> Nova inspeção</a>
+        <a class="btn btn-sm btn-success" href="{% url 'inspecoes:nova_inspecao' obra.id %}"><i class="bi bi-clipboard-plus"></i> Nova Inspeção</a>
       {% endif %}
       <a class="btn btn-sm btn-outline-primary" href="{% url 'inspecoes:lista_obra' obra.id %}"><i class="bi bi-geo-alt"></i> Ver no mapa</a>
     </div>
@@ -274,7 +274,7 @@
           </tbody>
         </table>
       </div>
-      <nav aria-label="Paginação das inspeções">
+      <nav aria-label="PaginaÃ§Ã£o das inspeÃ§Ãµes">
         <ul class="pagination justify-content-end mb-0">
           <li class="page-item {% if not inspecoes_page.has_previous %}disabled{% endif %}">
             <a class="page-link" href="{% if inspecoes_page.has_previous %}?insp_page={{ inspecoes_page.previous_page_number }}{% if pendencias_status %}&pend_status={{ pendencias_status }}{% endif %}#inspecoes{% else %}#{% endif %}">Anterior</a>
@@ -295,39 +295,40 @@
 
 
 {% if obra_status != 'finalizada' %}
-<div class="modal fade" id="resolverPendenciaModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <form method="post" class="modal-content" id="resolverPendenciaForm" enctype="multipart/form-data">
-      {% csrf_token %}
-      <input type="hidden" name="novo_status" value="resolvida">
-      <input type="hidden" name="next" value="{{ pendencias_redirect }}#pendencias">
-      <div class="modal-header">
-        <h5 class="modal-title">Resolver pendência</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p class="small text-muted mb-2" id="resolverPendenciaDescricao"></p>
-        <div class="mb-3">
-          <label class="form-label" for="resolverPendenciaSolucao">Solução adotada</label>
-          <textarea class="form-control" name="solucao" id="resolverPendenciaSolucao" rows="3" required></textarea>
-          <div class="form-text">Obrigatório para concluir a pendência.</div>
+  {% for pendencia in pendencias %}
+    {% if pendencia.status != 'resolvida' %}
+      <div class="modal fade" id="resolverPendenciaModal-{{ pendencia.id }}" tabindex="-1" aria-labelledby="resolverPendenciaModalLabel-{{ pendencia.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+          <form method="post" action="{% url 'obras:atualizar_pendencia' pendencia.id %}" class="modal-content" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="novo_status" value="resolvida">
+            <input type="hidden" name="next" value="{{ pendencias_redirect }}#pendencias">
+            <div class="modal-header">
+              <h5 class="modal-title" id="resolverPendenciaModalLabel-{{ pendencia.id }}">Resolver pendência</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <p class="small text-muted mb-2">{{ pendencia.descricao }}</p>
+              <div class="mb-3">
+                <label class="form-label" for="resolverPendenciaSolucao-{{ pendencia.id }}">Solução adotada</label>
+                <textarea class="form-control" name="solucao" id="resolverPendenciaSolucao-{{ pendencia.id }}" rows="3" required></textarea>
+                <div class="form-text">Obrigatório para concluir a pendência.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="resolverPendenciaImagem-{{ pendencia.id }}">Imagem da solução (opcional)</label>
+                <input class="form-control" type="file" id="resolverPendenciaImagem-{{ pendencia.id }}" name="imagem_resolucao" accept="image/jpg,image/jpeg,image/png,image/webp">
+                <div class="form-text">JPG, PNG ou WEBP até 5MB.</div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-success">Marcar como resolvida</button>
+            </div>
+          </form>
         </div>
-        <div class="mb-3">
-          <label class="form-label" for="resolverPendenciaImagem">Imagem da solucao (opcional)</label>
-          <input class="form-control" type="file" id="resolverPendenciaImagem" name="imagem_resolucao" accept="image/jpg,image/jpeg,image/png,image/webp">
-          <div class="form-text">JPG, PNG ou WEBP ate 5MB.</div>
-          <div class="mt-2">
-            <img id="resolverPendenciaPreview" class="img-fluid rounded shadow-sm d-none" alt="Preview da imagem da solucao" style="max-height: 220px; object-fit: cover;">
-          </div>
-        </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="submit" class="btn btn-success">Marcar como resolvida</button>
-      </div>
-    </form>
-  </div>
-</div>
+    {% endif %}
+  {% endfor %}
 {% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -383,7 +384,7 @@
                 </div>
               </div>
               {% if obra_status != 'finalizada' and can_manage_structure %}
-                <div class="btn-group" role="group" aria-label="Ações da categoria">
+                <div class="btn-group" role="group" aria-label="AÃ§Ãµes da categoria">
                   <a href="{% url 'obras:editar_categoria' categoria.id %}"
                      class="btn btn-sm btn-outline-secondary py-0 px-1"
                      onclick="event.stopPropagation();">
@@ -421,17 +422,17 @@
                 </div>
                   <div class="d-flex align-items-center" id="task-status-wrapper-{{ tarefa.id }}">
                     {% if tarefa.status == 'concluida' %}
-                      <span class="badge bg-success me-3">Concluída</span>
+                      <span class="badge bg-success me-3">ConcluÃ­da</span>
                     {% elif tarefa.status == 'andamento' %}
                       <span class="badge bg-primary me-3">Em andamento</span>
                     {% elif tarefa.status == 'bloqueada' %}
                       <span class="badge bg-warning text-dark me-3">Bloqueada</span>
                     {% else %}
-                      <span class="badge bg-secondary me-3">Não iniciada</span>
+                      <span class="badge bg-secondary me-3">NÃ£o iniciada</span>
                     {% endif %}
                     <small class="text-muted" id="task-date-wrapper-{{ tarefa.id }}">
                       {% if tarefa.data_fim_real %}
-                        <strong>Concluído em: {{ tarefa.data_fim_real|date:"d/m/Y" }}</strong>
+                        <strong>ConcluÃ­do em: {{ tarefa.data_fim_real|date:"d/m/Y" }}</strong>
                       {% else %}
                         Previsto: {{ tarefa.data_fim_prevista|date:"d/m/Y" }}
                       {% endif %}
@@ -460,56 +461,5 @@
 {% endwith %}
 {% endblock %}
 
-{% block extra_js %}
-{% if obra.status != 'finalizada' %}
-<script>
-  const resolverPendenciaModal = document.getElementById('resolverPendenciaModal');
-  if (resolverPendenciaModal) {
-    resolverPendenciaModal.addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget;
-      const updateUrl = button ? button.getAttribute('data-update-url') : null;
-      const descricao = button ? button.getAttribute('data-descricao') : '';
-      const form = document.getElementById('resolverPendenciaForm');
-      const descEl = document.getElementById('resolverPendenciaDescricao');
-      if (form && updateUrl) {
-        form.action = updateUrl;
-      }
-      if (descEl) {
-        descEl.textContent = descricao || '';
-      }
-      if (form) {
-        const textarea = form.querySelector('textarea[name="solucao"]');
-        if (textarea) {
-          textarea.value = '';
-          setTimeout(() => textarea.focus(), 100);
-        }
+{% block extra_js %}{% endblock %}
 
-        const previewEl = document.getElementById('resolverPendenciaPreview');
-        const fileInput = form.querySelector('input[name="imagem_resolucao"]');
-        if (fileInput) {
-          fileInput.value = '';
-          if (!fileInput.dataset.previewBound) {
-            fileInput.dataset.previewBound = '1';
-            fileInput.addEventListener('change', () => {
-              const file = fileInput.files && fileInput.files[0];
-              if (!previewEl) return;
-              if (file) {
-                previewEl.src = URL.createObjectURL(file);
-                previewEl.classList.remove('d-none');
-              } else {
-                previewEl.src = '';
-                previewEl.classList.add('d-none');
-              }
-            });
-          }
-        }
-        if (previewEl) {
-          previewEl.src = '';
-          previewEl.classList.add('d-none');
-        }
-      }
-    });
-  }
-</script>
-{% endif %}
-{% endblock %}

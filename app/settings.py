@@ -12,9 +12,28 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+from urllib.parse import parse_qs, unquote, urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+# Load a local .env file (optional) so os.getenv() works in development.
+_env_path = BASE_DIR / ".env"
+if _env_path.exists():
+    try:
+        env_text = _env_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        env_text = _env_path.read_text(encoding="utf-8", errors="ignore")
+
+    for raw_line in env_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip("'").strip('"')
+        os.environ.setdefault(key, value)
 
 
 # Quick-start development settings - unsuitable for production
@@ -47,6 +66,8 @@ INSTALLED_APPS = [
     # 3rd party
     'crispy_forms',
     'crispy_bootstrap5',
+    'cloudinary_storage',
+    'cloudinary',
 ]
 
 MIDDLEWARE = [
@@ -82,12 +103,66 @@ WSGI_APPLICATION = 'app.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+def _parse_database_url(database_url: str) -> dict:
+    parsed = urlparse(database_url)
+
+    if parsed.scheme in {"postgres", "postgresql"}:
+        query = parse_qs(parsed.query)
+        sslmode = (query.get("sslmode") or [None])[0]
+        conn_max_age = int(os.getenv("DB_CONN_MAX_AGE", "60"))
+
+        config = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(parsed.path.lstrip("/")),
+            "USER": unquote(parsed.username or ""),
+            "PASSWORD": unquote(parsed.password or ""),
+            "HOST": parsed.hostname or "",
+            "PORT": str(parsed.port or 5432),
+            "CONN_MAX_AGE": conn_max_age,
+        }
+        if sslmode:
+            config["OPTIONS"] = {"sslmode": sslmode}
+        return config
+
+    if parsed.scheme == "sqlite":
+        # sqlite:///relative/path.db or sqlite:////absolute/path.db
+        sqlite_path = unquote(parsed.path or "")
+        if sqlite_path.startswith("/") and len(sqlite_path) >= 3 and sqlite_path[2] == ":":
+            sqlite_path = sqlite_path.lstrip("/")
+        return {"ENGINE": "django.db.backends.sqlite3", "NAME": sqlite_path}
+
+    raise ValueError(f"Unsupported DATABASE_URL scheme: {parsed.scheme!r}")
+
+
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
+DB_ENGINE = (os.getenv("DB_ENGINE") or "").strip().lower()
+
+if DATABASE_URL:
+    DATABASES = {"default": _parse_database_url(DATABASE_URL)}
+elif DB_ENGINE in {"postgres", "postgresql"}:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME") or os.getenv("POSTGRES_DB") or "simob",
+            "USER": os.getenv("DB_USER") or os.getenv("POSTGRES_USER") or "postgres",
+            "PASSWORD": os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD") or "",
+            "HOST": os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST") or "127.0.0.1",
+            "PORT": os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT") or "5432",
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+            "OPTIONS": (
+                {"sslmode": os.getenv("DB_SSLMODE")}
+                if os.getenv("DB_SSLMODE")
+                else {}
+            ),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -128,8 +203,49 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Cloudinary (uploads/visualização de mídia)
+# Ative definindo CLOUDINARY_ENABLED=true (ou apenas setando as credenciais).
+_cloudinary_cloud_name = (os.getenv("CLOUDINARY_CLOUD_NAME") or "").strip()
+_cloudinary_api_key = (os.getenv("CLOUDINARY_API_KEY") or "").strip()
+_cloudinary_api_secret = (os.getenv("CLOUDINARY_API_SECRET") or "").strip()
+
+_cloudinary_configured = all(
+    [_cloudinary_cloud_name, _cloudinary_api_key, _cloudinary_api_secret]
+)
+
+_cloudinary_enabled_raw = os.getenv("CLOUDINARY_ENABLED")
+if _cloudinary_enabled_raw is None:
+    CLOUDINARY_ENABLED = _cloudinary_configured
+else:
+    CLOUDINARY_ENABLED = _cloudinary_enabled_raw.strip().lower() in {"1", "true", "yes", "on"}
+
+if CLOUDINARY_ENABLED:
+    CLOUDINARY_STORAGE = {
+        "CLOUD_NAME": _cloudinary_cloud_name,
+        "API_KEY": _cloudinary_api_key,
+        "API_SECRET": _cloudinary_api_secret,
+    }
+
+    # Django 4.2+ usa STORAGES; DEFAULT_FILE_STORAGE ainda funciona mas é legado.
+    try:
+        import django  # type: ignore
+
+        if getattr(django, "VERSION", (0, 0)) >= (4, 2):
+            STORAGES = {
+                "default": {
+                    "BACKEND": "app.storage_backends.CloudinaryMediaStorage",
+                },
+                "staticfiles": {
+                    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+                },
+            }
+        else:
+            DEFAULT_FILE_STORAGE = "app.storage_backends.CloudinaryMediaStorage"
+    except Exception:
+        DEFAULT_FILE_STORAGE = "app.storage_backends.CloudinaryMediaStorage"
 
 LOGOUT_REDIRECT_URL = "login"
 LOGIN_URL = "login"

@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import render
 from django.urls import reverse_lazy, reverse
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -21,6 +22,7 @@ from .forms import (
     CategoriaForm,
     TarefaForm,
     PendenciaForm,
+    PendenciaResolveForm,
     CategoriaInlineFormSet,
     AnexoObraForm,
 )
@@ -1017,4 +1019,79 @@ class PendenciaUpdateStatusView(RoleRequiredMixin, View):
             else:
                 messages.info(request, "Pendencia ja esta em andamento.")
 
+        return redirect(redirect_url)
+
+
+class PendenciaResolveView(RoleRequiredMixin, View):
+    allowed_roles = [
+        UserProfile.Level.ADMIN,
+        UserProfile.Level.NIVEL2,
+        UserProfile.Level.NIVEL1,
+    ]
+
+    def get(self, request, pk):
+        pendencia = get_object_or_404(Pendencia, pk=pk)
+        if not user_has_obra_access(request.user, pendencia.obra):
+            messages.error(request, NO_OBRA_PERMISSION_MESSAGE)
+            return redirect("obras:listar_obras")
+        if pendencia.obra.status == "finalizada":
+            messages.error(request, READ_ONLY_MESSAGE)
+            return redirect("obras:detalhe_pendencia", pk=pendencia.pk)
+        if pendencia.status == "resolvida":
+            messages.info(request, "Pendencia ja esta resolvida.")
+            return redirect("obras:detalhe_pendencia", pk=pendencia.pk)
+
+        form = PendenciaResolveForm()
+        return render(
+            request,
+            "obras/pendencia_resolver.html",
+            {"pendencia": pendencia, "form": form, "next": request.GET.get("next", "")},
+        )
+
+    def post(self, request, pk):
+        pendencia = get_object_or_404(Pendencia, pk=pk)
+        if not user_has_obra_access(request.user, pendencia.obra):
+            messages.error(request, NO_OBRA_PERMISSION_MESSAGE)
+            return redirect("obras:listar_obras")
+        if pendencia.obra.status == "finalizada":
+            messages.error(request, READ_ONLY_MESSAGE)
+            return redirect("obras:detalhe_pendencia", pk=pendencia.pk)
+
+        form = PendenciaResolveForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return render(
+                request,
+                "obras/pendencia_resolver.html",
+                {"pendencia": pendencia, "form": form, "next": request.POST.get("next", "")},
+            )
+
+        solucao_texto = form.cleaned_data["solucao"].strip()
+        imagem_resolucao = form.cleaned_data.get("imagem_resolucao")
+        next_url = request.POST.get("next", "")
+        redirect_url = reverse("obras:detalhe_pendencia", kwargs={"pk": pendencia.pk})
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            redirect_url = next_url
+
+        pendencia.status = "resolvida"
+        if imagem_resolucao:
+            pendencia.imagem_resolucao = imagem_resolucao
+        pendencia.data_fechamento = timezone.now()
+        try:
+            pendencia.full_clean()
+        except ValidationError as exc:
+            for msg in exc.messages:
+                form.add_error(None, msg)
+            return render(
+                request,
+                "obras/pendencia_resolver.html",
+                {"pendencia": pendencia, "form": form, "next": request.POST.get("next", "")},
+            )
+
+        pendencia.save()
+        SolucaoPendencia.objects.create(
+            pendencia=pendencia,
+            usuario=request.user,
+            descricao=solucao_texto,
+        )
+        messages.success(request, "Pendencia marcada como resolvida.")
         return redirect(redirect_url)
